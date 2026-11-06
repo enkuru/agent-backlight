@@ -1,0 +1,1462 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Backlight</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Michroma&display=swap">
+<style>
+:root {
+  /* Layout: a dim room. Keyboard, live scope and conditions up top; the three signals side by side; then the tell-apart checks, the hook map and the hand-off spec. */
+  --room: #0b0c0f;
+  --panel: #121419;
+  --panel-2: #191c23;
+  --line: #262a33;
+  --ink: #e6e8ed;
+  --ink-2: #a0a6b1;
+  --ink-3: #6c727d;
+  --think: #9fb3ff;
+  --ask: #f3b54a;
+  --normal: #c4c9d3;
+  --ok: #7ccfa2;
+  --warn: #ff9170;
+  --desk-1: #1e2436;
+  --desk-2: #0d0f14;
+  --mac-panel: rgb(38 40 47 / .88);
+  --mac-ink: #ececef;
+  --mac-ink-2: #a9adb6;
+  --mac-blue: #0a84ff;
+  --mac-blue-text: #5aa9ff;
+  --font-display: "Michroma", "Eurostile", "Arial Black", sans-serif;
+  --font-body: "Albert Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-keycap: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Albert Sans", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--room); }
+body { background: var(--room); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 80px; display: grid; gap: 52px; }
+
+/* Header */
+.top { display: grid; gap: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(22px, 6vw, 42px); letter-spacing: .03em; line-height: 1.15; margin: 0; text-wrap: balance; }
+.lede { color: var(--ink-2); margin: 0; font-size: 16px; max-width: 64ch; }
+h2 { font-size: 22px; font-weight: 600; letter-spacing: -.005em; margin: 0; text-wrap: balance; }
+h3 { font-size: 16px; font-weight: 600; margin: 0; }
+code { font-family: var(--font-mono); font-size: .86em; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+
+/* Controls */
+.bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { appearance: none; border: 0; background: transparent; color: var(--ink-2); font: 500 14px/1 var(--font-body); padding: 9px 14px; border-radius: 7px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-checked="true"] { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.seg button:disabled { opacity: .4; cursor: not-allowed; }
+.seg.small button { padding: 7px 11px; font-size: 13px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--normal)); flex: none; display: inline-block; }
+.btn { appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 500 14px/1 var(--font-body); padding: 10px 14px; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.btn:hover { border-color: var(--ink-3); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.primary { background: var(--ink); color: var(--room); border-color: var(--ink); }
+:focus-visible { outline: 2px solid var(--think); outline-offset: 2px; }
+input[type="range"] { accent-color: var(--c, var(--ink-2)); width: 100%; margin: 0; }
+.note { font-size: 13px; color: var(--ink-3); margin: 0; max-width: 72ch; }
+
+/* Stage */
+.stage { display: grid; gap: 14px; }
+.deck { background: var(--deck); border-radius: 18px; padding: 2.4% 2.4% 2%; box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 40px 70px -40px rgb(0 0 0 / .9); transition: background .5s; }
+.deck-inner { display: grid; grid-template-columns: 4.2% 1fr 4.2%; column-gap: 2.2%; }
+.grille { border-radius: 4px; background-image: radial-gradient(circle at center, var(--grille) 0 .9px, transparent 1.3px); background-size: 5px 5px; }
+.kb { container-type: inline-size; min-width: 0; }
+.keys { --u: 6cqw; --g: .7cqw; background: var(--well); border-radius: 1.4cqw; padding: var(--g); display: grid; gap: var(--g); transition: background .5s; }
+.row { display: flex; gap: var(--g); height: var(--u); }
+.row.fnrow { height: calc(var(--u) * .6); }
+.key { flex: var(--w) 1 0; min-width: 0; position: relative; background: var(--key); border-radius: .75cqw; color: var(--legend); text-shadow: var(--legend-shadow); box-shadow: var(--bleed), inset 0 .14cqw 0 rgb(255 255 255 / .035); font-family: var(--font-keycap); overflow: hidden; transition: background .5s; }
+.key > span { position: absolute; line-height: 1; white-space: nowrap; }
+.key .c { inset: 0; display: grid; place-items: center; font-size: max(6px, 1.7cqw); }
+.key .n { inset: 0; display: grid; place-content: center; justify-items: center; gap: .4cqw; font-size: max(5px, 1.3cqw); }
+.key .b { bottom: .75cqw; left: 0; right: 0; text-align: center; font-size: max(4.5px, 1.05cqw); }
+.key .tl, .key .tr, .key .bl, .key .br { font-size: max(4.5px, 1.02cqw); }
+.key .tl { top: .8cqw; left: .85cqw; }
+.key .tr { top: .8cqw; right: .85cqw; }
+.key .bl { bottom: .8cqw; left: .85cqw; }
+.key .br { bottom: .8cqw; right: .85cqw; }
+.key .glyph { font-size: max(5.5px, 1.35cqw); }
+.key.touchid { color: transparent; text-shadow: none; box-shadow: inset 0 0 0 .22cqw var(--ring); }
+.led { position: absolute; top: .9cqw; left: .9cqw; width: .55cqw; height: .55cqw; border-radius: 50%; background: var(--ring); }
+.arrows { flex: 3 1 0; min-width: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; column-gap: var(--g); row-gap: .3cqw; }
+.arrows .c { font-size: max(4.5px, 1cqw); }
+.a-l { grid-column: 1; grid-row: 2; }
+.a-u { grid-column: 2; grid-row: 1; }
+.a-d { grid-column: 2; grid-row: 2; }
+.a-r { grid-column: 3; grid-row: 2; }
+
+.track { display: grid; gap: 6px; }
+.track-bar { position: relative; display: flex; height: 8px; border-radius: 4px; overflow: visible; }
+.track-bar span { background: var(--c); opacity: .55; }
+.track-bar span:first-child { border-radius: 4px 0 0 4px; }
+.track-bar span:nth-last-child(2) { border-radius: 0 4px 4px 0; }
+.track-bar .now { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink); border-radius: 1px; left: 0; }
+.track-labels { position: relative; height: 16px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); }
+.track-labels span { position: absolute; top: 0; white-space: nowrap; padding-left: 4px; border-left: 1px solid var(--ink-3); line-height: 16px; }
+
+.test-bar { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.test-info { display: grid; gap: 2px; min-width: 0; }
+.test-info strong { font-weight: 600; font-size: 14px; }
+.test-info span { color: var(--ink-2); font-size: 14px; }
+.answers { display: flex; gap: 8px; flex-wrap: wrap; }
+.kbd-hint { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); }
+
+.scope { display: grid; gap: 6px; }
+.scope-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; }
+.readout { font-family: var(--font-mono); font-size: 13px; color: var(--ink-2); display: flex; gap: 10px; align-items: center; font-variant-numeric: tabular-nums; }
+.readout strong { color: var(--ink); font-weight: 500; }
+canvas.live { width: 100%; height: 76px; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+
+.conditions { display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: center; }
+.cond { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); flex-wrap: wrap; }
+.cond-range input { width: 170px; }
+.cond output { font-family: var(--font-mono); color: var(--ink); min-width: 52px; font-variant-numeric: tabular-nums; }
+
+/* Sections */
+.section { display: grid; gap: 18px; }
+.section-head { display: grid; gap: 6px; max-width: 72ch; }
+.section-head p { margin: 0; color: var(--ink-2); }
+
+.signals { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; align-content: start; min-width: 0; transition: border-color .3s; }
+.card[data-state="thinking"] { --c: var(--think); }
+.card[data-state="question"] { --c: var(--ask); }
+.card[data-state="normal"] { --c: var(--normal); }
+.card.active { border-color: color-mix(in oklab, var(--c) 60%, var(--line)); }
+.card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-head .when { color: var(--ink-3); font-size: 13px; }
+.card-head .spacer { flex: 1; }
+.live-tag { font: 500 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--c); margin-left: auto; }
+canvas.trace { width: 100%; height: 112px; display: block; }
+.fields { display: grid; gap: 12px; }
+.field { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; }
+.field label, .field .lbl { font-size: 13px; color: var(--ink-2); }
+.field output { font-family: var(--font-mono); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.field input[type="range"] { grid-column: 1 / -1; }
+.summary { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-2); margin: 0; padding-top: 12px; border-top: 1px solid var(--line); }
+
+.tell { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.verdict { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-weight: 600; font-size: 16px; }
+.pill { font: 500 12px/1 var(--font-mono); padding: 5px 8px; border-radius: 999px; letter-spacing: .02em; white-space: nowrap; }
+.pill.ok { color: var(--ok); background: color-mix(in oklab, var(--ok) 14%, transparent); }
+.pill.warn { color: var(--warn); background: color-mix(in oklab, var(--warn) 14%, transparent); }
+.pill.info { color: var(--ink-2); background: color-mix(in oklab, var(--ink-2) 12%, transparent); }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; }
+.checks li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); align-items: start; }
+.checks li .pill { justify-self: start; margin-top: 2px; }
+.checks .what { font-weight: 600; font-size: 14px; }
+.checks p { margin: 2px 0 0; color: var(--ink-2); font-size: 14px; }
+.g-score { font-family: var(--font-display); font-size: 34px; letter-spacing: .02em; line-height: 1.1; }
+.g-misses { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 14px; display: grid; gap: 4px; }
+.g-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+th, td { text-align: left; padding: 11px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+thead th { border-top: 0; font: 500 11px/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); background: var(--panel); }
+td:last-child { color: var(--ink-2); }
+.chip { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.chip.muted { color: var(--ink-3); }
+
+.build { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.calls { margin: 0; padding-left: 20px; display: grid; gap: 10px; color: var(--ink-2); font-size: 14px; }
+.calls strong { color: var(--ink); font-weight: 600; }
+.open-qs { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-2); font-size: 14px; }
+pre.spec { margin: 0; background: var(--room); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font: 12.5px/1.55 var(--font-mono); color: var(--ink-2); overflow-x: auto; max-height: 440px; }
+
+/* App panel mock-up */
+.app-demo { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 28px; align-items: start; }
+.desk { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: radial-gradient(120% 90% at 85% 0%, var(--desk-1), var(--desk-2) 70%); padding-bottom: 22px; }
+.menubar { height: 26px; display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 0 12px; background: rgb(16 18 24 / .72); color: var(--mac-ink); font: 500 13px/1 var(--font-keycap); }
+.mb-icon { display: inline-grid; place-items: center; width: 30px; height: 22px; border-radius: 5px; background: rgb(255 255 255 / .16); }
+.mb-icon canvas { display: block; width: 18px; height: 18px; }
+.popover { margin: 6px 10px 0 auto; width: min(340px, calc(100% - 20px)); background: var(--mac-panel); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgb(255 255 255 / .1); border-radius: 12px; box-shadow: 0 22px 44px -12px rgb(0 0 0 / .6); padding: 12px; display: grid; gap: 12px; font: 13px/1.35 var(--font-keycap); color: var(--mac-ink); }
+.pop-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pop-title { font-weight: 600; }
+.pop-sub { display: flex; align-items: center; gap: 6px; color: var(--mac-ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.switch { position: relative; display: inline-flex; cursor: pointer; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch .track { width: 32px; height: 19px; border-radius: 10px; background: rgb(255 255 255 / .18); position: relative; transition: background .2s; }
+.switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / .4); transition: transform .2s; }
+.switch input:checked + .track { background: var(--mac-blue); }
+.switch input:checked + .track::after { transform: translateX(13px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--think); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.popover .mac-seg { display: flex; width: 100%; background: rgb(255 255 255 / .07); border: 0; border-radius: 7px; padding: 2px; }
+.popover .mac-seg button { flex: 1; justify-content: center; padding: 5px 8px; border-radius: 5px; font: 500 12px/1.2 var(--font-keycap); color: var(--mac-ink); }
+.popover .mac-seg button[aria-checked="true"], .popover .mac-seg button[aria-selected="true"] { background: rgb(255 255 255 / .2); box-shadow: 0 1px 2px rgb(0 0 0 / .3); }
+.pop-panel { display: grid; gap: 10px; }
+.pop-panel[data-state="thinking"] { --c: var(--think); }
+.pop-panel[data-state="question"] { --c: var(--ask); }
+.pop-panel[data-state="normal"] { --c: var(--normal); }
+.mrow { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.mrow label, .mrow .lbl { font-size: 12.5px; color: var(--mac-ink-2); }
+.mrow output, .mval { font: 12px/1 var(--font-mono); color: var(--mac-ink); font-variant-numeric: tabular-nums; }
+.mrow input[type="range"], .mrow .mac-seg { grid-column: 1 / -1; }
+.mac-btn { appearance: none; border: 0; background: rgb(255 255 255 / .14); color: var(--mac-ink); font: 500 13px/1 var(--font-keycap); padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+.mac-btn:hover { background: rgb(255 255 255 / .2); }
+.pop-sep { height: 1px; background: rgb(255 255 255 / .09); }
+.pop-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--mac-ink-2); }
+.pop-hooks { display: flex; align-items: center; gap: 6px; }
+.mac-link { appearance: none; border: 0; background: none; color: var(--mac-blue-text); font: 500 12px/1 var(--font-keycap); cursor: pointer; padding: 2px 0; }
+.pop-import { display: grid; gap: 8px; }
+.pop-import label { font-size: 12px; color: var(--mac-ink-2); }
+.pop-import textarea { width: 100%; resize: vertical; background: rgb(0 0 0 / .25); color: var(--mac-ink); border: 1px solid rgb(255 255 255 / .12); border-radius: 6px; padding: 8px; font: 11.5px/1.45 var(--font-mono); }
+.pop-import-actions { display: flex; justify-content: flex-end; }
+.pop-msg { margin: 0; font-size: 12px; color: var(--mac-ink-2); }
+.app-notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 16px; }
+.app-notes li { color: var(--ink-2); font-size: 14px; max-width: 60ch; }
+.app-notes strong { color: var(--ink); font-weight: 600; display: block; margin-bottom: 2px; }
+
+/* Menu bar icon */
+.icon-tools { display: flex; flex-wrap: wrap; gap: 10px; }
+.icon-sheet { display: grid; gap: 10px; }
+.icon-head, .icon-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.icon-head { padding: 0 15px; font: 11px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.icon-head span { text-align: center; }
+.icon-row { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.icon-cell { position: relative; display: block; height: 96px; border-radius: 10px; overflow: hidden; }
+.icon-cell canvas { display: block; width: 100%; height: 100%; }
+.icon-cell-lbl { display: none; position: absolute; left: 0; right: 0; bottom: 5px; text-align: center; font: 9.5px/1 var(--font-mono); letter-spacing: .04em; color: rgb(255 255 255 / .5); }
+.icon-sheet[data-bar="light"] .icon-cell-lbl { color: rgb(0 0 0 / .5); }
+.icon-notes { margin: 0; padding: 0 15px; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 10px; }
+.icon-notes li { color: var(--ink-2); font-size: 14px; }
+.icon-notes strong { color: var(--ink); font-weight: 600; display: block; margin-bottom: 2px; }
+@media (max-width: 760px) {
+  .icon-head { display: none; }
+  .icon-row { gap: 8px; padding: 10px; }
+  .icon-cell { height: 84px; }
+  .icon-cell-lbl { display: block; }
+  .icon-notes { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; gap: 14px 20px; }
+}
+
+@media (max-width: 820px) {
+  .tell, .build, .app-demo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .wrap { gap: 40px; }
+  .seg button { padding: 8px 11px; }
+  .cond-range input { width: 140px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck, .keys, .key, .card { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">MacBook Pro · single-zone white backlight</p>
+    <h1>Agent Backlight</h1>
+    <p class="lede">The keyboard light shows what Claude is doing: a slow wave while it works, a sharp blink when it needs you, and your normal light the rest of the time. Tune both signals here, then run the glance test to check you can tell them apart.</p>
+  </header>
+
+  <section class="stage" id="stage" aria-label="Keyboard preview">
+    <div class="bar" id="main-bar">
+      <div class="seg" role="radiogroup" aria-label="Preview state" id="state-seg">
+        <button type="button" role="radio" id="st-normal" data-state="normal" aria-checked="false"><span class="dot" style="--c: var(--normal)"></span>Normal</button>
+        <button type="button" role="radio" id="st-thinking" data-state="thinking" aria-checked="true"><span class="dot" style="--c: var(--think)"></span>Thinking</button>
+        <button type="button" role="radio" id="st-question" data-state="question" aria-checked="false"><span class="dot" style="--c: var(--ask)"></span>Question</button>
+      </div>
+      <div class="bar-actions">
+        <button type="button" class="btn" id="session-btn">Play a session</button>
+        <button type="button" class="btn" id="pause-btn">Pause</button>
+      </div>
+    </div>
+
+    <div class="bar test-bar" id="test-bar" hidden>
+      <div class="test-info">
+        <strong id="tb-round">Round 1 of 10</strong>
+        <span id="tb-status" aria-live="polite">Watch the keyboard.</span>
+      </div>
+      <div class="answers">
+        <button type="button" class="btn" id="ans-normal" data-answer="normal"><span class="dot" style="--c: var(--normal)"></span>Normal</button>
+        <button type="button" class="btn" id="ans-thinking" data-answer="thinking"><span class="dot" style="--c: var(--think)"></span>Thinking</button>
+        <button type="button" class="btn" id="ans-question" data-answer="question"><span class="dot" style="--c: var(--ask)"></span>Question</button>
+        <button type="button" class="btn" id="tb-stop">Stop test</button>
+      </div>
+      <span class="kbd-hint">Keys 1 · 2 · 3 answer</span>
+    </div>
+
+    <div class="deck" id="deck">
+      <div class="deck-inner">
+        <div class="grille" aria-hidden="true"></div>
+        <div class="kb"><div class="keys" id="keys" aria-hidden="true"></div></div>
+        <div class="grille" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div class="track" id="track" hidden>
+      <div class="track-bar" id="track-bar"><i class="now" id="track-now"></i></div>
+      <div class="track-labels" id="track-labels"></div>
+    </div>
+
+    <div class="scope">
+      <div class="scope-head">
+        <div class="readout"><span class="dot" id="ro-dot"></span><strong id="ro-state">Thinking</strong><span id="ro-level">45%</span></div>
+        <span class="note">Backlight brightness, last 8 seconds</span>
+      </div>
+      <canvas class="live" id="live" aria-label="Backlight brightness over the last 8 seconds"></canvas>
+    </div>
+
+    <div class="conditions">
+      <div class="cond">
+        <span id="lbl-room">Room light</span>
+        <div class="seg small" role="radiogroup" aria-labelledby="lbl-room" id="room-seg" data-bind="sim.room">
+          <button type="button" role="radio" id="room-dark" data-value="dark" aria-checked="true">Dark room</button>
+          <button type="button" role="radio" id="room-office" data-value="office" aria-checked="false">Office</button>
+          <button type="button" role="radio" id="room-daylight" data-value="daylight" aria-checked="false">Daylight</button>
+        </div>
+      </div>
+      <div class="cond cond-range">
+        <label for="smoothingMs">macOS smoothing</label>
+        <input type="range" id="smoothingMs" data-path="sim.smoothingMs" min="0" max="500" step="10">
+        <output id="out-smoothingMs" for="smoothingMs">off</output>
+      </div>
+    </div>
+    <p class="note">A screen can only approximate an LED. How fast the real backlight follows is unknown until the hardware test; set smoothing to 250 ms to preview a slow one.</p>
+  </section>
+
+  <section class="section" aria-labelledby="h-signals">
+    <div class="section-head">
+      <h2 id="h-signals">The three signals</h2>
+      <p>Each curve shows six seconds of brightness. With smoothing on, the dashed line is what we ask for and the solid line is what the light does.</p>
+    </div>
+    <div class="signals">
+      <article class="card" data-state="thinking" id="card-thinking">
+        <div class="card-head"><span class="dot"></span><h3>Thinking</h3><span class="when">while Claude works</span><span class="live-tag" id="tag-thinking" hidden>Live</span></div>
+        <canvas class="trace" id="tr-thinking" aria-label="Thinking brightness curve"></canvas>
+        <div class="fields">
+          <div class="field">
+            <span class="lbl" id="lbl-shape">Shape</span>
+            <span></span>
+            <div class="seg small" role="radiogroup" aria-labelledby="lbl-shape" id="shape-seg" data-bind="thinking.shape" style="grid-column: 1 / -1; justify-self: start;">
+              <button type="button" role="radio" id="shape-sine" data-value="sine" aria-checked="false">Sine</button>
+              <button type="button" role="radio" id="shape-breath" data-value="breath" aria-checked="true">Breath</button>
+              <button type="button" role="radio" id="shape-triangle" data-value="triangle" aria-checked="false">Triangle</button>
+            </div>
+          </div>
+          <div class="field"><label for="t-periodMs">One breath</label><output id="out-t-periodMs" for="t-periodMs"></output><input type="range" id="t-periodMs" data-path="thinking.periodMs" min="1000" max="6000" step="100"></div>
+          <div class="field"><label for="t-lowPct">Lowest</label><output id="out-t-lowPct" for="t-lowPct"></output><input type="range" id="t-lowPct" data-path="thinking.lowPct" min="0" max="100" step="1"></div>
+          <div class="field"><label for="t-highPct">Highest</label><output id="out-t-highPct" for="t-highPct"></output><input type="range" id="t-highPct" data-path="thinking.highPct" min="0" max="100" step="1"></div>
+        </div>
+        <p class="summary" id="sum-thinking"></p>
+      </article>
+
+      <article class="card" data-state="question" id="card-question">
+        <div class="card-head"><span class="dot"></span><h3>Question</h3><span class="when">when Claude needs you</span><span class="live-tag" id="tag-question" hidden>Live</span></div>
+        <canvas class="trace" id="tr-question" aria-label="Question brightness curve"></canvas>
+        <div class="fields">
+          <div class="field">
+            <span class="lbl" id="lbl-flashes">Flashes per burst</span>
+            <span></span>
+            <div class="seg small" role="radiogroup" aria-labelledby="lbl-flashes" id="flash-seg" data-bind="question.flashes" style="grid-column: 1 / -1; justify-self: start;">
+              <button type="button" role="radio" id="flashes-1" data-value="1" aria-checked="true">1</button>
+              <button type="button" role="radio" id="flashes-2" data-value="2" aria-checked="false">2</button>
+              <button type="button" role="radio" id="flashes-3" data-value="3" aria-checked="false">3</button>
+            </div>
+          </div>
+          <div class="field"><label for="q-onMs">On</label><output id="out-q-onMs" for="q-onMs"></output><input type="range" id="q-onMs" data-path="question.onMs" min="60" max="600" step="10"></div>
+          <div class="field"><label for="q-offMs">Off between flashes</label><output id="out-q-offMs" for="q-offMs"></output><input type="range" id="q-offMs" data-path="question.offMs" min="60" max="600" step="10"></div>
+          <div class="field"><label for="q-pauseMs">Rest after burst</label><output id="out-q-pauseMs" for="q-pauseMs"></output><input type="range" id="q-pauseMs" data-path="question.pauseMs" min="0" max="3000" step="50"></div>
+          <div class="field"><label for="q-lowPct">Off level</label><output id="out-q-lowPct" for="q-lowPct"></output><input type="range" id="q-lowPct" data-path="question.lowPct" min="0" max="100" step="1"></div>
+          <div class="field"><label for="q-highPct">On level</label><output id="out-q-highPct" for="q-highPct"></output><input type="range" id="q-highPct" data-path="question.highPct" min="0" max="100" step="1"></div>
+        </div>
+        <p class="summary" id="sum-question"></p>
+        <p class="note">This preview flashes. Pause stops it.</p>
+      </article>
+
+      <article class="card" data-state="normal" id="card-normal">
+        <div class="card-head"><span class="dot"></span><h3>Normal</h3><span class="when">everything else</span><span class="live-tag" id="tag-normal" hidden>Live</span></div>
+        <canvas class="trace" id="tr-normal" aria-label="Normal brightness curve after a turn ends"></canvas>
+        <div class="fields">
+          <div class="field"><label for="n-levelPct">Your usual level (preview only)</label><output id="out-n-levelPct" for="n-levelPct"></output><input type="range" id="n-levelPct" data-path="normal.levelPct" min="0" max="100" step="1"></div>
+          <div class="field"><label for="n-exitFadeMs">Fade back after Stop</label><output id="out-n-exitFadeMs" for="n-exitFadeMs"></output><input type="range" id="n-exitFadeMs" data-path="normal.exitFadeMs" min="0" max="1500" step="50"></div>
+        </div>
+        <p class="summary" id="sum-normal"></p>
+        <p class="note">No custom effect. The real app reads your own level and auto-brightness when it starts and puts them back.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="h-tell">
+    <div class="section-head">
+      <h2 id="h-tell">Can you tell them apart?</h2>
+      <p>The checks read the settings above and use rules of thumb for a first pass. The glance test gives the better answer, and the real keyboard has the final say.</p>
+    </div>
+    <div class="tell">
+      <div class="card">
+        <div class="verdict" id="verdict"></div>
+        <ul class="checks" id="checks"></ul>
+      </div>
+      <div class="card" id="glance">
+        <div class="card-head"><h3>Glance test</h3><span class="when">10 rounds · 2.5 s each</span></div>
+        <p class="note" id="g-intro">The keyboard plays a random state for 2.5 seconds with every label hidden, then goes dark. Name what you saw. It uses your current settings and room light.</p>
+        <div class="g-score" id="g-score" hidden></div>
+        <ul class="g-misses" id="g-misses" hidden></ul>
+        <div class="g-actions"><button type="button" class="btn primary" id="g-start">Start glance test</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="h-hooks">
+    <div class="section-head">
+      <h2 id="h-hooks">When each state turns on</h2>
+      <p>Claude Code hooks tell the background app what to show. With several sessions open, the strongest state wins: Question, then Thinking, then Normal.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Claude Code hook</th><th>Light</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><code>UserPromptSubmit</code></td><td><span class="chip"><span class="dot" style="--c: var(--think)"></span>Thinking</span></td><td>You sent a prompt and Claude starts working.</td></tr>
+          <tr><td><code>PreToolUse</code> · AskUserQuestion</td><td><span class="chip"><span class="dot" style="--c: var(--ask)"></span>Question</span></td><td>Claude asks you to pick an option.</td></tr>
+          <tr><td><code>Notification</code> · permission prompt</td><td><span class="chip"><span class="dot" style="--c: var(--ask)"></span>Question</span></td><td>Claude waits for your approval.</td></tr>
+          <tr><td><code>PostToolUse</code> · any tool</td><td><span class="chip"><span class="dot" style="--c: var(--think)"></span>Thinking</span></td><td>Your answer or approval went through and work continues.</td></tr>
+          <tr><td><code>PreToolUse</code> · other tools</td><td><span class="chip"><span class="dot" style="--c: var(--think)"></span>Thinking</span></td><td>Work carries on, including after you deny a permission.</td></tr>
+          <tr><td><code>Stop</code></td><td><span class="chip"><span class="dot" style="--c: var(--normal)"></span>Normal</span></td><td>The turn is done.</td></tr>
+          <tr><td><code>Notification</code> · idle reminder</td><td><span class="chip muted">No change</span></td><td>Keeps the light calm after every finished turn.</td></tr>
+          <tr><td><code>SessionEnd</code></td><td><span class="chip muted">Session removed</span></td><td>A closed session stops counting toward the strongest state.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="h-app">
+    <div class="section-head">
+      <h2 id="h-app">The same settings in the app</h2>
+      <p>The app lives in the menu bar. Its panel has the same controls as this page, so you can fine-tune against the real LED. This mock-up is linked to the sliders above: change either one and the other follows.</p>
+    </div>
+    <div class="app-demo">
+      <div class="desk">
+        <div class="menubar" aria-hidden="true">
+          <span class="mb-icon"><canvas id="mb-icon"></canvas></span>
+          <span>Fri 6 Nov 14:32</span>
+        </div>
+        <div class="popover" role="group" aria-label="Agent Backlight menu bar panel, mock-up">
+          <div class="pop-head">
+            <div>
+              <div class="pop-title">Agent Backlight</div>
+              <div class="pop-sub"><span class="dot" id="app-dot"></span><span id="app-status">Thinking · 1 session</span></div>
+            </div>
+            <label class="switch" for="app-enabled"><input type="checkbox" id="app-enabled" checked><span class="track" aria-hidden="true"></span><span class="sr">Signals on</span></label>
+          </div>
+
+          <div class="seg mac-seg" role="tablist" aria-label="Signal" id="app-tabs">
+            <button type="button" role="tab" id="tab-thinking" data-tab="thinking" aria-selected="true" aria-controls="app-panel-thinking">Thinking</button>
+            <button type="button" role="tab" id="tab-question" data-tab="question" aria-selected="false" aria-controls="app-panel-question">Question</button>
+            <button type="button" role="tab" id="tab-normal" data-tab="normal" aria-selected="false" aria-controls="app-panel-normal">Normal</button>
+          </div>
+
+          <div class="pop-panel" id="app-panel-thinking" data-state="thinking" role="tabpanel" aria-labelledby="tab-thinking">
+            <div class="mrow">
+              <span class="lbl" id="app-lbl-shape">Shape</span><span></span>
+              <div class="seg mac-seg" role="radiogroup" aria-labelledby="app-lbl-shape" data-bind="thinking.shape">
+                <button type="button" role="radio" id="app-shape-sine" data-value="sine" aria-checked="false">Sine</button>
+                <button type="button" role="radio" id="app-shape-breath" data-value="breath" aria-checked="true">Breath</button>
+                <button type="button" role="radio" id="app-shape-triangle" data-value="triangle" aria-checked="false">Triangle</button>
+              </div>
+            </div>
+            <div class="mrow"><label for="app-t-periodMs">One breath</label><output id="out-app-t-periodMs" for="app-t-periodMs"></output><input type="range" id="app-t-periodMs" data-path="thinking.periodMs" min="1000" max="6000" step="100"></div>
+            <div class="mrow"><label for="app-t-lowPct">Lowest</label><output id="out-app-t-lowPct" for="app-t-lowPct"></output><input type="range" id="app-t-lowPct" data-path="thinking.lowPct" min="0" max="100" step="1"></div>
+            <div class="mrow"><label for="app-t-highPct">Highest</label><output id="out-app-t-highPct" for="app-t-highPct"></output><input type="range" id="app-t-highPct" data-path="thinking.highPct" min="0" max="100" step="1"></div>
+          </div>
+
+          <div class="pop-panel" id="app-panel-question" data-state="question" role="tabpanel" aria-labelledby="tab-question" hidden>
+            <div class="mrow">
+              <span class="lbl" id="app-lbl-flashes">Flashes per burst</span><span></span>
+              <div class="seg mac-seg" role="radiogroup" aria-labelledby="app-lbl-flashes" data-bind="question.flashes">
+                <button type="button" role="radio" id="app-flashes-1" data-value="1" aria-checked="true">1</button>
+                <button type="button" role="radio" id="app-flashes-2" data-value="2" aria-checked="false">2</button>
+                <button type="button" role="radio" id="app-flashes-3" data-value="3" aria-checked="false">3</button>
+              </div>
+            </div>
+            <div class="mrow"><label for="app-q-onMs">On</label><output id="out-app-q-onMs" for="app-q-onMs"></output><input type="range" id="app-q-onMs" data-path="question.onMs" min="60" max="600" step="10"></div>
+            <div class="mrow"><label for="app-q-offMs">Off between flashes</label><output id="out-app-q-offMs" for="app-q-offMs"></output><input type="range" id="app-q-offMs" data-path="question.offMs" min="60" max="600" step="10"></div>
+            <div class="mrow"><label for="app-q-pauseMs">Rest after burst</label><output id="out-app-q-pauseMs" for="app-q-pauseMs"></output><input type="range" id="app-q-pauseMs" data-path="question.pauseMs" min="0" max="3000" step="50"></div>
+            <div class="mrow"><label for="app-q-lowPct">Off level</label><output id="out-app-q-lowPct" for="app-q-lowPct"></output><input type="range" id="app-q-lowPct" data-path="question.lowPct" min="0" max="100" step="1"></div>
+            <div class="mrow"><label for="app-q-highPct">On level</label><output id="out-app-q-highPct" for="app-q-highPct"></output><input type="range" id="app-q-highPct" data-path="question.highPct" min="0" max="100" step="1"></div>
+          </div>
+
+          <div class="pop-panel" id="app-panel-normal" data-state="normal" role="tabpanel" aria-labelledby="tab-normal" hidden>
+            <div class="mrow"><span class="lbl">Your level</span><span class="mval">From macOS</span></div>
+            <div class="mrow"><label for="app-n-exitFadeMs">Fade back after Stop</label><output id="out-app-n-exitFadeMs" for="app-n-exitFadeMs"></output><input type="range" id="app-n-exitFadeMs" data-path="normal.exitFadeMs" min="0" max="1500" step="50"></div>
+          </div>
+
+          <button type="button" class="mac-btn" id="app-play">Play Thinking on keyboard</button>
+          <div class="pop-sep"></div>
+          <div class="pop-foot">
+            <span class="pop-hooks"><span class="dot" style="--c: var(--ok)"></span>Claude Code hooks installed</span>
+            <button type="button" class="mac-link" id="app-import-btn" aria-expanded="false" aria-controls="app-import">Import spec…</button>
+          </div>
+          <div class="pop-import" id="app-import" hidden>
+            <label for="app-import-text">Paste the spec from the design page</label>
+            <textarea id="app-import-text" rows="4" spellcheck="false"></textarea>
+            <div class="pop-import-actions"><button type="button" class="mac-btn" id="app-import-apply">Import</button></div>
+            <p class="pop-msg" id="app-import-msg" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
+      <ul class="app-notes">
+        <li><strong>Same controls, same limits</strong>Every slider on this page is in the panel, with the same name and range.</li>
+        <li><strong>Play on keyboard</strong>Plays the selected signal on the real backlight for 5 seconds, so you judge the LED itself, not a screen.</li>
+        <li><strong>Signals switch</strong>Turns the signals off for meetings or screen sharing. The keyboard goes back to your own setting.</li>
+        <li><strong>Import spec</strong>Paste the spec from this page to load every value at once.</li>
+        <li><strong>Only on this page</strong>Room light and macOS smoothing exist only for the preview. In the app the room is real and the LED shows its own speed.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="h-icon">
+    <div class="section-head">
+      <h2 id="h-icon">Menu bar icon</h2>
+      <p>A keycap whose legend says the state. It moves with the keyboard, same rhythm and same flashes, so a look at the screen tells you what the keys tell you. Each state has its own shape, so with Reduce Motion on it still reads as a still frame. It's a template image: a single ink that macOS turns black or white to suit the menu bar.</p>
+    </div>
+    <div class="icon-tools">
+      <div class="seg small" role="radiogroup" aria-label="Menu bar colour" id="icon-bar">
+        <button type="button" role="radio" data-bar="dark" aria-checked="true">Dark menu bar</button>
+        <button type="button" role="radio" data-bar="light" aria-checked="false">Light menu bar</button>
+      </div>
+      <div class="seg small" role="radiogroup" aria-label="Icon size" id="icon-zoom">
+        <button type="button" role="radio" data-zoom="3" aria-checked="true">3× zoom</button>
+        <button type="button" role="radio" data-zoom="1" aria-checked="false">Actual size</button>
+      </div>
+    </div>
+    <div class="icon-sheet" id="icon-sheet" data-bar="dark">
+      <div class="icon-head" aria-hidden="true"><span>Normal</span><span>Thinking</span><span>Question</span><span>Signals off</span></div>
+      <div class="icon-row" role="img" aria-label="Keycap icon in four states: a sun when normal, three dots with a rolling wave while thinking, a question mark that lights the whole key on a question, and a dimmed sun when signals are off.">
+        <span class="icon-cell"><canvas data-state="normal"></canvas><span class="icon-cell-lbl">Normal</span></span>
+        <span class="icon-cell"><canvas data-state="thinking"></canvas><span class="icon-cell-lbl">Thinking</span></span>
+        <span class="icon-cell"><canvas data-state="question"></canvas><span class="icon-cell-lbl">Question</span></span>
+        <span class="icon-cell"><canvas data-state="off"></canvas><span class="icon-cell-lbl">Signals off</span></span>
+      </div>
+    </div>
+    <ul class="icon-notes">
+      <li><strong>Normal</strong>A backlight sun, the same symbol as the brightness key.</li>
+      <li><strong>Thinking</strong>A wave rolls through three dots, one pass per breath of the keyboard wave.</li>
+      <li><strong>Question</strong>A question mark. On each keyboard flash the whole key lights up.</li>
+      <li><strong>Signals off</strong>The sun, dimmed the way macOS shows a disabled item.</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="h-build">
+    <div class="section-head">
+      <h2 id="h-build">Hand-off to the build</h2>
+      <p>Copy the spec when the signals feel right. The build starts from it. This page remembers your settings in this browser.</p>
+    </div>
+    <div class="build">
+      <div class="card">
+        <h3>What the app does</h3>
+        <ol class="calls">
+          <li><strong>On start:</strong> save your level and auto-brightness setting. <code>brightnessForKeyboard:</code> <code>isAutoBrightnessEnabledForKeyboard:</code></li>
+          <li><strong>When a signal starts:</strong> switch off auto-brightness and pause idle dimming, so the light stays on while you aren't typing. <code>enableAutoBrightness:forKeyboard:</code> <code>suspendIdleDimming:forKeyboard:</code></li>
+          <li><strong>Every frame:</strong> set the brightness, about 30 times a second. <code>setBrightness:fadeSpeed:commit:forKeyboard:</code></li>
+          <li><strong>Back to Normal:</strong> fade to your saved level, then give back auto-brightness and idle dimming.</li>
+        </ol>
+        <h3>Open questions for the hardware test</h3>
+        <ul class="open-qs">
+          <li>Can an app we build ourselves change the brightness? So far we've only seen that these methods exist.</li>
+          <li>How fast does the LED follow? That sets the real smoothing value.</li>
+          <li>Does <code>commit:</code> NO leave your saved level alone?</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Spec</h3><span class="spacer"></span><button type="button" class="btn" id="reset-btn">Reset to defaults</button><button type="button" class="btn primary" id="copy-btn">Copy spec</button></div>
+        <pre class="spec" id="spec"></pre>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const DEFAULTS = {
+    thinking: { shape: 'breath', periodMs: 3000, lowPct: 15, highPct: 100 },
+    question: { flashes: 1, onMs: 150, offMs: 200, pauseMs: 1000, lowPct: 0, highPct: 100 },
+    normal: { levelPct: 45, exitFadeMs: 400 },
+    sim: { room: 'dark', smoothingMs: 0 }
+  };
+  const STORE_KEY = 'agent-backlight-v1';
+  const ENTRY_BLEND_MS = 250;
+  const WINDOW_MS = 6000;
+  const SCOPE_MS = 8000;
+  const CLIP_MS = 2500;
+  const TEST_ROUNDS = 10;
+  const LABEL = { normal: 'Normal', thinking: 'Thinking', question: 'Question' };
+  const CVAR = { normal: '--normal', thinking: '--think', question: '--ask' };
+  const ROOM = { dark: 0, office: 0.5, daylight: 1 };
+  const MONO = '"IBM Plex Mono", ui-monospace, Menlo, monospace';
+  const SHAPE_NAME = { sine: 'Sine', breath: 'Breath', triangle: 'Triangle' };
+
+  const clone = o => JSON.parse(JSON.stringify(o));
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        return {
+          thinking: { ...DEFAULTS.thinking, ...(s.thinking || {}) },
+          question: { ...DEFAULTS.question, ...(s.question || {}) },
+          normal: { ...DEFAULTS.normal, ...(s.normal || {}) },
+          sim: { ...DEFAULTS.sim, ...(s.sim || {}) }
+        };
+      }
+    } catch (e) { /* storage unavailable */ }
+    return clone(DEFAULTS);
+  }
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(P)); } catch (e) { /* storage unavailable */ } }
+  let P = load();
+
+  const $ = id => document.getElementById(id);
+  const C = {};
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const k of ['line', 'ink', 'ink-2', 'ink-3', 'think', 'ask', 'normal', 'panel']) C[k] = cs.getPropertyValue('--' + k).trim();
+  }
+  readColors();
+  const colorOf = s => s === 'thinking' ? C.think : s === 'question' ? C.ask : s === 'normal' ? C.normal : C['ink-3'];
+
+  /* ---------- Patterns (all return 0..1) ---------- */
+  function thinkingAt(tMs, p) {
+    const ph = (((tMs % p.periodMs) + p.periodMs) % p.periodMs) / p.periodMs;
+    let s;
+    if (p.shape === 'triangle') s = ph < 0.5 ? ph * 2 : 2 - ph * 2;
+    else if (p.shape === 'breath') {
+      if (ph < 0.4) s = 0.5 - 0.5 * Math.cos(Math.PI * (ph / 0.4));
+      else s = 0.5 + 0.5 * Math.cos(Math.PI * ((ph - 0.4) / 0.6));
+    } else s = 0.5 - 0.5 * Math.cos(2 * Math.PI * ph);
+    return (p.lowPct + (p.highPct - p.lowPct) * s) / 100;
+  }
+  const questionCycle = q => q.flashes * (q.onMs + q.offMs) + q.pauseMs;
+  function questionAt(tMs, q) {
+    const c = questionCycle(q);
+    const t = ((tMs % c) + c) % c;
+    if (t < q.flashes * (q.onMs + q.offMs)) {
+      const k = t % (q.onMs + q.offMs);
+      return (k < q.onMs ? q.highPct : q.lowPct) / 100;
+    }
+    return q.lowPct / 100;
+  }
+  function patternAt(state, t, from) {
+    if (state === 'question') return questionAt(t, P.question);
+    if (state === 'thinking') {
+      const v = thinkingAt(t, P.thinking);
+      if (from == null) return v;
+      const k = Math.min(1, t / ENTRY_BLEND_MS);
+      return from + (v - from) * k;
+    }
+    const L = P.normal.levelPct / 100;
+    if (from == null || P.normal.exitFadeMs <= 0) return L;
+    return from + (L - from) * Math.min(1, t / P.normal.exitFadeMs);
+  }
+  function smoothStep(y, target, dtMs) {
+    const s = P.sim.smoothingMs;
+    if (s <= 0) return target;
+    return y + (target - y) * (1 - Math.exp(-dtMs / (s / 3)));
+  }
+  function sampleTrace(fn, ms, step) {
+    const raw = [], out = [];
+    let y = fn(-3000);
+    for (let t = -3000; t <= ms; t += step) {
+      const r = fn(t);
+      y = smoothStep(y, r, step);
+      if (t >= 0) { raw.push([t, r]); out.push([t, y]); }
+    }
+    return { raw, out };
+  }
+  function questionEffective() {
+    const q = P.question, c = questionCycle(q), step = 2;
+    let y = q.lowPct / 100, max = -1, min = 2;
+    for (let t = 0; t < c * 4; t += step) {
+      y = smoothStep(y, questionAt(t, q), step);
+      if (t >= c * 3) { if (y > max) max = y; if (y < min) min = y; }
+    }
+    return { max: max * 100, min: min * 100 };
+  }
+  function maxFlashesPerSec(q, swing) {
+    if (swing < 10) return 0;
+    const c = questionCycle(q), onsets = [];
+    for (let k = 0; k < 6; k++) for (let i = 0; i < q.flashes; i++) onsets.push(k * c + i * (q.onMs + q.offMs));
+    let m = 0;
+    for (const o of onsets) m = Math.max(m, onsets.filter(x => x >= o && x < o + 1000).length);
+    return m;
+  }
+
+  /* ---------- Keyboard ---------- */
+  const keysEl = $('keys'), deckEl = $('deck');
+  const L1 = ch => [1, { c: ch }];
+  const N = (t, b) => [1, { t, b }];
+  const ROWS = [
+    { cls: 'fnrow', keys: [[1.5, { bl: 'esc' }], ...Array.from({ length: 12 }, (_, i) => [1, { b: 'F' + (i + 1) }]), [1, { touch: true }]] },
+    { keys: [N('~', '`'), N('!', '1'), N('@', '2'), N('#', '3'), N('$', '4'), N('%', '5'), N('^', '6'), N('&', '7'), N('*', '8'), N('(', '9'), N(')', '0'), N('_', '–'), N('+', '='), [1.5, { br: 'delete' }]] },
+    { keys: [[1.5, { tl: '⇥', bl: 'tab' }], ...'QWERTYUIOP'.split('').map(L1), N('{', '['), N('}', ']'), N('|', '\\')] },
+    { keys: [[1.8, { bl: 'caps lock', led: true }], ...'ASDFGHJKL'.split('').map(L1), N(':', ';'), N('"', "'"), [1.7, { br: 'return' }]] },
+    { keys: [[2.3, { tl: '⇧', bl: 'shift' }], ...'ZXCVBNM'.split('').map(L1), N('<', ','), N('>', '.'), N('?', '/'), [2.2, { tr: '⇧', br: 'shift' }]] },
+    { keys: [[1, { tl: 'fn' }], [1, { tr: '⌃', br: 'control' }], [1, { tr: '⌥', br: 'option' }], [1.25, { tr: '⌘', br: 'command' }], [5, {}], [1.25, { tl: '⌘', bl: 'command' }], [1, { tl: '⌥', bl: 'option' }], 'arrows'] }
+  ];
+  function span(cls, text) { const s = document.createElement('span'); s.className = cls; s.textContent = text; return s; }
+  function makeKey(w, L) {
+    const k = document.createElement('div');
+    k.className = 'key';
+    k.style.setProperty('--w', w);
+    if (L.touch) { k.classList.add('touchid'); return k; }
+    if (L.c) k.append(span('c', L.c));
+    else if (L.t && L.b) { const n = span('n', ''); n.append(document.createElement('span'), document.createElement('span')); n.children[0].textContent = L.t; n.children[1].textContent = L.b; k.append(n); }
+    else if (L.b) k.append(span('b', L.b));
+    for (const p of ['tl', 'tr', 'bl', 'br']) if (L[p]) k.append(span(p + (L[p].length === 1 ? ' glyph' : ''), L[p]));
+    if (L.led) { const i = document.createElement('i'); i.className = 'led'; k.append(i); }
+    return k;
+  }
+  for (const r of ROWS) {
+    const row = document.createElement('div');
+    row.className = 'row' + (r.cls ? ' ' + r.cls : '');
+    for (const k of r.keys) {
+      if (k === 'arrows') {
+        const a = document.createElement('div');
+        a.className = 'arrows';
+        for (const [g, cls] of [['◂', 'a-l'], ['▴', 'a-u'], ['▾', 'a-d'], ['▸', 'a-r']]) { const key = makeKey(1, { c: g }); key.classList.add(cls); a.append(key); }
+        row.append(a);
+      } else row.append(makeKey(k[0], k[1]));
+    }
+    keysEl.append(row);
+  }
+
+  const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+  const rgb = c => `rgb(${c[0]} ${c[1]} ${c[2]})`;
+  function paintRoom() {
+    const a = ROOM[P.sim.room] ?? 0;
+    deckEl.style.setProperty('--deck', rgb(mix([17, 18, 22], [92, 96, 104], a)));
+    deckEl.style.setProperty('--grille', rgb(mix([5, 5, 7], [52, 55, 61], a)));
+    keysEl.style.setProperty('--well', rgb(mix([3, 3, 5], [20, 21, 25], a)));
+    keysEl.style.setProperty('--key', rgb(mix([10, 11, 13], [38, 40, 45], a)));
+    keysEl.style.setProperty('--ring', rgb(mix([30, 32, 37], [92, 96, 103], a)));
+  }
+  let lastPaint = -1;
+  function paint(b) {
+    const a = ROOM[P.sim.room] ?? 0;
+    const glow = Math.pow(Math.max(0, Math.min(1, b)), 0.8) * (1 - 0.8 * a);
+    const key = Math.round(glow * 400) + a * 1000;
+    if (key === lastPaint) return;
+    lastPaint = key;
+    const off = mix([30, 32, 38], [128, 133, 142], a);
+    const st = keysEl.style;
+    st.setProperty('--legend', rgb(mix(off, [236, 241, 255], Math.min(1, glow))));
+    st.setProperty('--legend-shadow', glow > 0.02 ? `0 0 ${(glow * 0.9).toFixed(2)}cqw rgb(205 220 255 / ${(glow * 0.85).toFixed(3)})` : 'none');
+    st.setProperty('--bleed', `0 0 ${(glow * 1.3).toFixed(2)}cqw rgb(190 208 255 / ${(glow * 0.22).toFixed(3)})`);
+  }
+
+  /* ---------- Traces ---------- */
+  function sizeCanvas(c) {
+    const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+    if (!w || !h) return null;
+    const W = Math.round(w * dpr), H = Math.round(h * dpr);
+    if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+  function drawTrace(canvas, data, color, opts = {}) {
+    const s = sizeCanvas(canvas);
+    if (!s) return;
+    const { ctx, w, h } = s;
+    const padL = 36, padR = 4, padT = 8, padB = 18;
+    const X = t => padL + (t / WINDOW_MS) * (w - padL - padR);
+    const Y = v => padT + (1 - v) * (h - padT - padB);
+    ctx.font = `10px ${MONO}`;
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = C.line;
+    ctx.fillStyle = C['ink-3'];
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (const v of [0, 0.5, 1]) {
+      const y = Math.round(Y(v)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+      ctx.fillText(Math.round(v * 100) + '%', padL - 6, y);
+    }
+    ctx.textBaseline = 'alphabetic';
+    for (let sec = 0; sec <= 6; sec += 2) {
+      ctx.textAlign = sec === 0 ? 'left' : sec === 6 ? 'right' : 'center';
+      ctx.fillText(sec + ' s', X(sec * 1000), h - 3);
+    }
+    if (opts.marker) {
+      const x = Math.round(X(opts.marker.t)) + 0.5;
+      ctx.setLineDash([2, 3]); ctx.strokeStyle = C['ink-3'];
+      ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, Y(0)); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(opts.marker.label, x + 4, padT);
+    }
+    const path = pts => { ctx.beginPath(); pts.forEach(([t, v], i) => i ? ctx.lineTo(X(t), Y(v)) : ctx.moveTo(X(t), Y(v))); };
+    path(data.out);
+    ctx.lineTo(X(data.out[data.out.length - 1][0]), Y(0));
+    ctx.lineTo(X(0), Y(0));
+    ctx.closePath();
+    ctx.globalAlpha = 0.13; ctx.fillStyle = color; ctx.fill(); ctx.globalAlpha = 1;
+    if (opts.showRaw) {
+      ctx.setLineDash([3, 3]); ctx.lineWidth = 1.2; ctx.strokeStyle = C['ink-3'];
+      path(data.raw); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.strokeStyle = color;
+    path(data.out); ctx.stroke();
+  }
+  function drawTraces() {
+    const showRaw = P.sim.smoothingMs > 0;
+    drawTrace($('tr-thinking'), sampleTrace(t => thinkingAt(t, P.thinking), WINDOW_MS, 10), C.think, { showRaw });
+    drawTrace($('tr-question'), sampleTrace(t => questionAt(t, P.question), WINDOW_MS, 3), C.ask, { showRaw });
+    const stopAt = 1500;
+    const nFn = t => t < stopAt ? thinkingAt(t, P.thinking) : patternAt('normal', t - stopAt, thinkingAt(stopAt, P.thinking));
+    drawTrace($('tr-normal'), sampleTrace(nFn, WINDOW_MS, 10), C.normal, { showRaw, marker: { t: stopAt, label: 'Stop' } });
+  }
+
+  /* ---------- Live state ---------- */
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let paused = !!reduceMotion;
+  let clock = 0, lastTs = null;
+  let state = 'thinking', stateT0 = 0;
+  let y = P.normal.levelPct / 100, fromLevel = y;
+  let history = [];
+  let session = null;
+  let test = null;
+  let lastResult = null;
+  let appOff = false, appPlay = null, appOffT0 = 0, appOffFrom = 0;
+
+  const stateSeg = $('state-seg'), pauseBtn = $('pause-btn'), sessionBtn = $('session-btn');
+  function setState(s) {
+    if (s === state) return;
+    fromLevel = y; state = s; stateT0 = clock;
+    updateStateUI();
+  }
+  function updateStateUI() {
+    for (const b of stateSeg.querySelectorAll('button')) b.setAttribute('aria-checked', String(!test && b.dataset.state === state));
+    for (const s of ['normal', 'thinking', 'question']) {
+      $('card-' + s).classList.toggle('active', !test && s === state);
+      $('tag-' + s).hidden = !!test || s !== state;
+    }
+  }
+  stateSeg.addEventListener('click', e => {
+    const b = e.target.closest('button[data-state]');
+    if (!b || test) return;
+    stopSession();
+    appPlay = null;
+    if (appOff) setAppOff(false);
+    setState(b.dataset.state);
+  });
+  function setPaused(v) {
+    paused = v;
+    pauseBtn.textContent = paused ? 'Play' : 'Pause';
+  }
+  pauseBtn.addEventListener('click', () => setPaused(!paused));
+  setPaused(paused);
+
+  /* Session playback */
+  const SESSION = [
+    { state: 'normal', ms: 2000, label: '' },
+    { state: 'thinking', ms: 7000, label: 'Prompt' },
+    { state: 'question', ms: 5000, label: 'Question' },
+    { state: 'thinking', ms: 4500, label: 'Answer' },
+    { state: 'normal', ms: 3500, label: 'Stop' }
+  ];
+  const SESSION_MS = SESSION.reduce((a, s) => a + s.ms, 0);
+  (function buildTrack() {
+    const bar = $('track-bar'), now = $('track-now'), labels = $('track-labels');
+    let acc = 0;
+    for (const s of SESSION) {
+      const seg = document.createElement('span');
+      seg.style.flex = String(s.ms);
+      seg.style.setProperty('--c', `var(${CVAR[s.state]})`);
+      bar.insertBefore(seg, now);
+      if (s.label) {
+        const l = document.createElement('span');
+        l.textContent = s.label;
+        l.style.left = (acc / SESSION_MS * 100) + '%';
+        labels.append(l);
+      }
+      acc += s.ms;
+    }
+  })();
+  function startSession() {
+    appPlay = null;
+    if (appOff) setAppOff(false);
+    session = { t0: clock };
+    $('track').hidden = false;
+    sessionBtn.textContent = 'Stop session';
+    if (paused) setPaused(false);
+  }
+  function stopSession() {
+    if (!session) return;
+    session = null;
+    $('track').hidden = true;
+    sessionBtn.textContent = 'Play a session';
+  }
+  sessionBtn.addEventListener('click', () => session ? stopSession() : startSession());
+  function tickSession() {
+    const t = (clock - session.t0) % SESSION_MS;
+    let acc = 0, seg = SESSION[0];
+    for (const s of SESSION) { if (t < acc + s.ms) { seg = s; break; } acc += s.ms; }
+    if (seg.state !== state) setState(seg.state);
+    $('track-now').style.left = (t / SESSION_MS * 100) + '%';
+  }
+
+  /* Glance test */
+  const testBar = $('test-bar'), mainBar = $('main-bar');
+  function startTest() {
+    stopSession();
+    appPlay = null;
+    test = { round: 0, score: 0, log: [], phase: 'play', t0: clock, pick: 'normal', offset: 0, lastOk: false };
+    history = [];
+    mainBar.hidden = true; testBar.hidden = false;
+    $('g-start').disabled = true;
+    setPaused(false);
+    updateStateUI();
+    nextRound();
+    $('stage').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  }
+  function nextRound() {
+    test.round++;
+    test.pick = ['normal', 'thinking', 'question'][Math.floor(Math.random() * 3)];
+    test.offset = test.pick === 'thinking' ? Math.random() * P.thinking.periodMs : test.pick === 'question' ? Math.random() * questionCycle(P.question) : 0;
+    test.phase = 'play';
+    test.t0 = clock;
+    renderTestBar();
+  }
+  function testTarget() {
+    const t = clock - test.t0;
+    if (test.phase === 'play') {
+      if (t > CLIP_MS) { test.phase = 'ask'; renderTestBar(); return 0; }
+      const tt = t + test.offset;
+      return test.pick === 'normal' ? P.normal.levelPct / 100 : test.pick === 'thinking' ? thinkingAt(tt, P.thinking) : questionAt(tt, P.question);
+    }
+    if (test.phase === 'feedback' && t > 1000) {
+      if (test.round >= TEST_ROUNDS) finishTest(); else nextRound();
+    }
+    return 0;
+  }
+  function answer(s) {
+    if (!test || (test.phase !== 'play' && test.phase !== 'ask')) return;
+    test.lastOk = s === test.pick;
+    if (test.lastOk) test.score++;
+    test.log.push({ shown: test.pick, said: s });
+    test.phase = 'feedback';
+    test.t0 = clock;
+    renderTestBar();
+  }
+  function renderTestBar() {
+    if (!test) return;
+    $('tb-round').textContent = `Round ${test.round} of ${TEST_ROUNDS} · ${test.score} right`;
+    const msg = test.phase === 'play' ? 'Watch the keyboard.'
+      : test.phase === 'ask' ? 'Which state was it?'
+      : test.lastOk ? `Right, ${LABEL[test.pick]}.` : `That was ${LABEL[test.pick]}.`;
+    $('tb-status').textContent = msg;
+    for (const b of testBar.querySelectorAll('[data-answer]')) b.disabled = test.phase === 'feedback';
+  }
+  function endTest() {
+    test = null;
+    history = [];
+    mainBar.hidden = false; testBar.hidden = true;
+    $('g-start').disabled = false;
+    fromLevel = y; stateT0 = clock;
+    updateStateUI();
+    renderGlance();
+  }
+  function finishTest() {
+    lastResult = { score: test.score, total: TEST_ROUNDS, misses: test.log.filter(r => r.shown !== r.said) };
+    endTest();
+    $('glance').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+  }
+  function renderGlance() {
+    const score = $('g-score'), misses = $('g-misses');
+    if (!lastResult) { score.hidden = true; misses.hidden = true; $('g-start').textContent = 'Start glance test'; return; }
+    score.hidden = false;
+    score.textContent = `${lastResult.score} / ${lastResult.total}`;
+    misses.hidden = false;
+    misses.replaceChildren();
+    if (!lastResult.misses.length) {
+      const li = document.createElement('li'); li.textContent = 'No misses. All three states read clearly.'; misses.append(li);
+    } else {
+      for (const m of lastResult.misses) {
+        const li = document.createElement('li');
+        li.textContent = `Shown ${LABEL[m.shown]}, you said ${LABEL[m.said]}.`;
+        misses.append(li);
+      }
+    }
+    $('g-start').textContent = 'Run again';
+  }
+  $('g-start').addEventListener('click', startTest);
+  $('tb-stop').addEventListener('click', () => { if (test) endTest(); });
+  testBar.addEventListener('click', e => { const b = e.target.closest('[data-answer]'); if (b) answer(b.dataset.answer); });
+  document.addEventListener('keydown', e => {
+    if (!test || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    const map = { '1': 'normal', '2': 'thinking', '3': 'question' };
+    if (map[e.key]) { e.preventDefault(); answer(map[e.key]); }
+  });
+
+  /* Scope + readout */
+  const liveCanvas = $('live');
+  function drawScope() {
+    const s = sizeCanvas(liveCanvas);
+    if (!s) return;
+    const { ctx, w, h } = s;
+    const padL = 42, padR = 12, padT = 9, padB = 9;
+    const X = t => w - padR - ((clock - t) / SCOPE_MS) * (w - padL - padR);
+    const Y = v => padT + (1 - v) * (h - padT - padB);
+    ctx.font = `10px ${MONO}`;
+    ctx.lineWidth = 1; ctx.strokeStyle = C.line; ctx.fillStyle = C['ink-3'];
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (const v of [0, 0.5, 1]) {
+      const yy = Math.round(Y(v)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(w - padR, yy); ctx.stroke();
+      if (v !== 0.5) ctx.fillText(Math.round(v * 100) + '%', padL - 8, yy);
+    }
+    if (test) {
+      ctx.font = `12px ${MONO}`; ctx.textAlign = 'center'; ctx.fillStyle = C['ink-2'];
+      ctx.fillText('Hidden during the glance test', (padL + w - padR) / 2, h / 2);
+      return;
+    }
+    const pts = history;
+    if (!pts.length) return;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(padL, 0, w - padL - padR + 6, h); ctx.clip();
+    ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    let start = 0;
+    while (start < pts.length - 1 && pts[start + 1].t < clock - SCOPE_MS) start++;
+    let run = null;
+    for (let k = start; k < pts.length; k++) {
+      const p = pts[k];
+      if (p.s !== run) {
+        if (run !== null) { ctx.lineTo(X(p.t), Y(p.y)); ctx.stroke(); }
+        run = p.s; ctx.strokeStyle = colorOf(run); ctx.beginPath(); ctx.moveTo(X(p.t), Y(p.y));
+      } else ctx.lineTo(X(p.t), Y(p.y));
+    }
+    if (run !== null) ctx.stroke();
+    const last = pts[pts.length - 1];
+    ctx.fillStyle = colorOf(last.s);
+    ctx.beginPath(); ctx.arc(X(last.t), Y(last.y), 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  let lastRo = '';
+  function updateReadout() {
+    const s = test ? 'Hidden' : appOff ? 'Signals off' : LABEL[state];
+    const l = test ? '––' : Math.round(y * 100) + '%';
+    const left = appPlay ? Math.max(1, Math.ceil((appPlay.until - clock) / 1000)) : 0;
+    const k = s + l + left;
+    if (k === lastRo) return;
+    lastRo = k;
+    $('ro-state').textContent = s;
+    $('ro-level').textContent = l;
+    const c = test ? 'var(--ink-3)' : appOff ? 'var(--normal)' : `var(${CVAR[state]})`;
+    for (const id of ['ro-dot', 'app-dot']) $(id).style.setProperty('--c', c);
+    $('app-status').textContent = test ? 'Glance test running'
+      : appOff ? 'Signals off · keyboard is yours'
+      : appPlay ? `Playing ${LABEL[state]} · ${left} s left`
+      : `${LABEL[state]} · 1 session · ${l}`;
+  }
+
+  function frame(ts) {
+    if (lastTs == null) lastTs = ts;
+    let dt = Math.min(64, ts - lastTs);
+    lastTs = ts;
+    if (paused) dt = 0; else clock += dt;
+    if (session && !paused) tickSession();
+    if (appPlay && clock >= appPlay.until) { const prev = appPlay.prev; appPlay = null; setState(prev); }
+    const target = test ? testTarget()
+      : appOff ? patternAt('normal', clock - appOffT0, appOffFrom)
+      : patternAt(state, clock - stateT0, fromLevel);
+    if (dt > 0) {
+      y = smoothStep(y, target, dt);
+      history.push({ t: clock, y, s: test ? 'hidden' : state });
+      while (history.length > 2 && history[1].t < clock - SCOPE_MS - 500) history.shift();
+    }
+    paint(y);
+    drawScope();
+    updateReadout();
+    drawIcons();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- Controls ---------- */
+  const ranges = [...document.querySelectorAll('input[type="range"][data-path]')];
+  const getPath = p => { const [a, b] = p.split('.'); return P[a][b]; };
+  const setPath = (p, v) => { const [a, b] = p.split('.'); P[a][b] = v; };
+  const secs = ms => ms >= 1000 ? (ms / 1000).toFixed(1) + ' s' : ms + ' ms';
+  function fmt(path, v) {
+    if (path === 'sim.smoothingMs') return v === 0 ? 'off' : v + ' ms';
+    if (path === 'thinking.periodMs') return (v / 1000).toFixed(1) + ' s';
+    if (path.endsWith('Pct')) return v + '%';
+    return v + ' ms';
+  }
+  const bindSegs = [...document.querySelectorAll('.seg[data-bind]')];
+  function syncControls() {
+    for (const r of ranges) {
+      const v = getPath(r.dataset.path);
+      if (+r.value !== v) r.value = v;
+      const o = $('out-' + r.id);
+      if (o) o.textContent = fmt(r.dataset.path, v);
+    }
+    for (const seg of bindSegs) {
+      const v = String(getPath(seg.dataset.bind));
+      for (const b of seg.querySelectorAll('button[data-value]')) b.setAttribute('aria-checked', String(b.dataset.value === v));
+    }
+  }
+  for (const r of ranges) r.addEventListener('input', () => {
+    const path = r.dataset.path, v = +r.value;
+    setPath(path, v);
+    const [grp, key] = path.split('.');
+    if (key === 'lowPct' && P[grp].highPct < v) P[grp].highPct = v;
+    if (key === 'highPct' && P[grp].lowPct > v) P[grp].lowPct = v;
+    changed();
+  });
+  for (const seg of bindSegs) seg.addEventListener('click', e => {
+    const b = e.target.closest('button[data-value]');
+    if (!b) return;
+    const path = seg.dataset.bind;
+    setPath(path, typeof getPath(path) === 'number' ? +b.dataset.value : b.dataset.value);
+    if (path === 'sim.room') { paintRoom(); lastPaint = -1; }
+    changed();
+  });
+
+  function changed() { syncControls(); save(); renderAll(); }
+  function renderAll() { drawTraces(); renderChecks(); renderSummaries(); renderSpec(); }
+
+  function renderSummaries() {
+    const t = P.thinking, q = P.question, n = P.normal;
+    $('sum-thinking').textContent = `${SHAPE_NAME[t.shape] || 'Sine'} wave, ${(t.periodMs / 1000).toFixed(1)} s per breath, ${t.lowPct}–${t.highPct}%`;
+    const rate = (1000 / (q.onMs + q.offMs)).toFixed(1);
+    $('sum-question').textContent = `${q.flashes} × ${q.onMs} ms flash${q.flashes > 1 ? `, ${q.offMs} ms apart (${rate}/s)` : ''}, then ${q.pauseMs} ms rest · ${q.lowPct}–${q.highPct}%`;
+    $('sum-normal').textContent = `Steady at your level · fades back in ${n.exitFadeMs} ms after Stop`;
+  }
+
+  function renderChecks() {
+    const t = P.thinking, q = P.question, sm = P.sim.smoothingMs;
+    const items = [];
+    const ok = (what, text) => items.push({ s: 'ok', what, text });
+    const warn = (what, text) => items.push({ s: 'warn', what, text });
+    const info = (what, text) => items.push({ s: 'info', what, text });
+    const interval = q.onMs + q.offMs;
+    const ratio = t.periodMs / interval;
+    if (ratio >= 4) ok('Speed', `The wave takes ${secs(t.periodMs)} per breath. The blink flashes every ${secs(interval)}, ${ratio.toFixed(1)}× faster.`);
+    else warn('Speed', `The blink is only ${ratio.toFixed(1)}× faster than the wave. Shorten the flashes or slow the wave; aim for 4× or more.`);
+
+    const eff = questionEffective();
+    const qSwing = eff.max - eff.min, tSwing = t.highPct - t.lowPct;
+    if (t.lowPct < 8) warn('Brightness range', `The wave drops to ${t.lowPct}%, so at the bottom of each breath the light looks off. Keep it at 8% or more.`);
+    else if (qSwing < tSwing + 25) warn('Brightness range', `The blink swings ${Math.round(qSwing)} points and the wave ${tSwing}. Give the blink at least 25 points more.`);
+    else ok('Brightness range', `The blink swings ${Math.round(eff.min)}–${Math.round(eff.max)}%. The wave stays between ${t.lowPct}% and ${t.highPct}% and never goes dark.`);
+
+    const full = q.highPct - q.lowPct;
+    const reach = full > 0 ? (eff.max - q.lowPct) / full : 1;
+    if (sm === 0) ok('Sharp edges', 'Hard on/off edges. Turn up macOS smoothing to see how a slow LED would soften them.');
+    else if (reach >= 0.85) ok('Sharp edges', `With ${sm} ms of smoothing each flash still reaches ${Math.round(reach * 100)}% of its swing.`);
+    else warn('Sharp edges', `With ${sm} ms of smoothing each flash only reaches ${Math.round(reach * 100)}% of its swing and starts to look like a pulse. Try about ${Math.ceil(sm * 0.64 / 10) * 10} ms on and off.`);
+
+    if (tSwing >= 25) ok('Wave is visible', `The wave swings ${tSwing} points, so it shouldn't pass for Normal.`);
+    else warn('Wave is visible', `A ${tSwing}-point wave is easy to miss and can pass for Normal. Aim for 25 or more.`);
+
+    const m = maxFlashesPerSec(q, qSwing);
+    if (m <= 3) ok('Flash safety', m === 0 ? 'No visible flashes.' : `At most ${m} flash${m === 1 ? '' : 'es'} in any second. The usual limit is 3.`);
+    else warn('Flash safety', `Up to ${m} flashes in one second. Keep it at 3 or fewer: lengthen on/off time or use fewer flashes.`);
+
+    if (P.sim.room !== 'dark') info('Room light', P.sim.room === 'daylight'
+      ? 'In daylight both signals wash out in this preview. The backlight works best as a dim-room signal.'
+      : 'Office light weakens both signals in this preview. The real LED decides how much.');
+
+    const warns = items.filter(i => i.s === 'warn').length;
+    const v = $('verdict');
+    v.replaceChildren();
+    const pill = document.createElement('span');
+    pill.className = 'pill ' + (warns ? 'warn' : 'ok');
+    pill.textContent = warns ? `${warns} to fix` : 'Clear';
+    const txt = document.createElement('span');
+    txt.textContent = warns ? 'Close in places. Fix the flagged checks.' : 'Easy to tell apart on screen. Next, confirm on the real keyboard.';
+    v.append(pill, txt);
+
+    const list = $('checks');
+    list.replaceChildren();
+    for (const it of items) {
+      const li = document.createElement('li');
+      const p = document.createElement('span');
+      p.className = 'pill ' + it.s;
+      p.textContent = it.s === 'ok' ? 'Pass' : it.s === 'warn' ? 'Fix' : 'Note';
+      const body = document.createElement('div');
+      const w = document.createElement('div'); w.className = 'what'; w.textContent = it.what;
+      const tx = document.createElement('p'); tx.textContent = it.text;
+      body.append(w, tx);
+      li.append(p, body);
+      list.append(li);
+    }
+  }
+
+  function renderSpec() {
+    const t = P.thinking, q = P.question;
+    const spec = {
+      thinking: { shape: t.shape, periodMs: t.periodMs, lowPct: t.lowPct, highPct: t.highPct, enterFadeMs: ENTRY_BLEND_MS },
+      question: { flashes: q.flashes, onMs: q.onMs, offMs: q.offMs, pauseMs: q.pauseMs, lowPct: q.lowPct, highPct: q.highPct },
+      normal: { restore: 'saved level and auto-brightness', fadeBackMs: P.normal.exitFadeMs },
+      menuBarIcon: { style: 'keycap', template: true, motion: 'same timing as the keyboard', signalsOff: 'dimmed', reduceMotion: 'one still frame per state' },
+      priority: ['question', 'thinking', 'normal'],
+      hooks: {
+        'UserPromptSubmit': 'thinking',
+        'PreToolUse AskUserQuestion': 'question',
+        'Notification permission prompt': 'question',
+        'PostToolUse any tool': 'thinking',
+        'PreToolUse other tools': 'thinking',
+        'Stop': 'normal',
+        'Notification idle reminder': 'no change',
+        'SessionEnd': 'remove session'
+      }
+    };
+    $('spec').textContent = JSON.stringify(spec, null, 2);
+  }
+
+  const copyBtn = $('copy-btn');
+  copyBtn.addEventListener('click', () => {
+    const text = $('spec').textContent;
+    const reset = (label, ms) => { copyBtn.textContent = label; setTimeout(() => { copyBtn.textContent = 'Copy spec'; }, ms); };
+    const fallback = () => {
+      const r = document.createRange(); r.selectNodeContents($('spec'));
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      reset('Selected, press ⌘C', 2600);
+    };
+    try { navigator.clipboard.writeText(text).then(() => reset('Copied', 1500), fallback); } catch (e) { fallback(); }
+  });
+  $('reset-btn').addEventListener('click', () => {
+    P = clone(DEFAULTS);
+    paintRoom(); lastPaint = -1;
+    changed();
+  });
+
+  /* ---------- App panel mock-up ---------- */
+  let appTab = 'thinking';
+  const appTabs = $('app-tabs');
+  function renderAppTabs() {
+    for (const b of appTabs.querySelectorAll('[data-tab]')) b.setAttribute('aria-selected', String(b.dataset.tab === appTab));
+    for (const s of ['thinking', 'question', 'normal']) $('app-panel-' + s).hidden = s !== appTab;
+    $('app-play').textContent = `Play ${LABEL[appTab]} on keyboard`;
+  }
+  appTabs.addEventListener('click', e => {
+    const b = e.target.closest('[data-tab]');
+    if (!b) return;
+    appTab = b.dataset.tab;
+    renderAppTabs();
+  });
+  function setAppOff(v) {
+    appOff = v;
+    $('app-enabled').checked = !v;
+    if (v) { appPlay = null; stopSession(); appOffFrom = y; appOffT0 = clock; }
+    else { fromLevel = y; stateT0 = clock; }
+  }
+  $('app-enabled').addEventListener('change', e => { if (!test) setAppOff(!e.target.checked); else e.target.checked = !appOff; });
+  $('app-play').addEventListener('click', () => {
+    if (test) return;
+    if (appOff) setAppOff(false);
+    stopSession();
+    const prev = appPlay ? appPlay.prev : state;
+    appPlay = { prev, until: clock + 5000 };
+    if (paused) setPaused(false);
+    if (appTab === state) { fromLevel = y; stateT0 = clock; } else setState(appTab);
+  });
+  const importBox = $('app-import'), importBtn = $('app-import-btn');
+  importBtn.addEventListener('click', () => {
+    importBox.hidden = !importBox.hidden;
+    importBtn.setAttribute('aria-expanded', String(!importBox.hidden));
+    $('app-import-msg').textContent = '';
+    if (!importBox.hidden) $('app-import-text').focus();
+  });
+  $('app-import-apply').addEventListener('click', () => {
+    const msg = $('app-import-msg');
+    let s;
+    try { s = JSON.parse($('app-import-text').value); } catch (e) { msg.textContent = "That isn't valid JSON. Copy the spec again and paste all of it."; return; }
+    if (!s || typeof s !== 'object' || (!s.thinking && !s.question && !s.normal)) { msg.textContent = 'No thinking, question or normal settings found in that text.'; return; }
+    const num = (v, lo, hi) => (typeof v === 'number' && isFinite(v)) ? Math.min(hi, Math.max(lo, Math.round(v))) : null;
+    const put = (obj, key, v) => { if (v !== null) obj[key] = v; };
+    const t = s.thinking || {}, q = s.question || {}, n = s.normal || {};
+    if (SHAPE_NAME[t.shape]) P.thinking.shape = t.shape;
+    put(P.thinking, 'periodMs', num(t.periodMs, 1000, 6000));
+    put(P.thinking, 'lowPct', num(t.lowPct, 0, 100));
+    put(P.thinking, 'highPct', num(t.highPct, 0, 100));
+    put(P.question, 'flashes', num(q.flashes, 1, 3));
+    put(P.question, 'onMs', num(q.onMs, 60, 600));
+    put(P.question, 'offMs', num(q.offMs, 60, 600));
+    put(P.question, 'pauseMs', num(q.pauseMs, 0, 3000));
+    put(P.question, 'lowPct', num(q.lowPct, 0, 100));
+    put(P.question, 'highPct', num(q.highPct, 0, 100));
+    put(P.normal, 'exitFadeMs', num(n.fadeBackMs, 0, 1500));
+    for (const g of ['thinking', 'question']) if (P[g].lowPct > P[g].highPct) P[g].highPct = P[g].lowPct;
+    changed();
+    $('app-import-text').value = '';
+    msg.textContent = 'Imported. This page and the panel now use these values.';
+  });
+
+  /* ---------- Menu bar icon ---------- */
+  // Each icon is drawn in an 18 pt box as a template image: one ink with alpha, tinted per menu bar.
+  const U = 18;
+  const DISABLED_ALPHA = 0.38;
+  const BAR = { dark: { bg: '#25272e', ink: '#ffffff' }, light: { bg: '#e7e7ec', ink: '#000000' } };
+
+  function rrPath(o, x, y, w, h, r) {
+    o.beginPath();
+    o.moveTo(x + r, y);
+    o.arcTo(x + w, y, x + w, y + h, r);
+    o.arcTo(x + w, y + h, x, y + h, r);
+    o.arcTo(x, y + h, x, y, r);
+    o.arcTo(x, y, x + w, y, r);
+    o.closePath();
+  }
+  const keyPath = o => rrPath(o, 1.7, 1.7, 14.6, 14.6, 3.6);
+  const dot = (o, x, y, r) => { o.beginPath(); o.arc(x, y, r, 0, Math.PI * 2); };
+  function wavePhase(t) {
+    const p = P.thinking.periodMs;
+    return 2 * Math.PI * ((((t % p) + p) % p) / p);
+  }
+  function flashOn(t) {
+    const q = P.question, c = questionCycle(q), m = ((t % c) + c) % c;
+    return m < q.flashes * (q.onMs + q.offMs) && m % (q.onMs + q.offMs) < q.onMs;
+  }
+  function knockout(o, draw) {
+    o.save();
+    o.globalCompositeOperation = 'destination-out';
+    draw();
+    o.restore();
+  }
+
+  // Keycap: the legend says the state. Sun = normal, rolling dots = thinking, ? = question (whole key lights on each flash).
+  function drawKeycap(o, st, t) {
+    const lit = st === 'question' && flashOn(t);
+    o.lineWidth = 1.4;
+    keyPath(o);
+    if (lit) o.fill(); else o.stroke();
+    if (st === 'thinking') {
+      const ph = wavePhase(t);
+      for (let i = 0; i < 3; i++) {
+        const s = Math.sin(ph - i * 1.1);
+        o.globalAlpha = 0.35 + 0.65 * (0.5 + 0.5 * s);
+        dot(o, 5.6 + i * 3.4, 9.3 - 1.8 * s, 1.35);
+        o.fill();
+      }
+      o.globalAlpha = 1;
+    } else if (st === 'question') {
+      o.font = '700 11.5px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+      o.textAlign = 'center';
+      o.textBaseline = 'alphabetic';
+      const mark = () => o.fillText('?', 9, 13.1);
+      if (lit) knockout(o, mark); else mark();
+    } else {
+      dot(o, 9, 9, 1.9);
+      o.fill();
+      o.lineWidth = 1.15;
+      o.lineCap = 'round';
+      o.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        o.moveTo(9 + Math.cos(a) * 3.7, 9 + Math.sin(a) * 3.7);
+        o.lineTo(9 + Math.cos(a) * 5, 9 + Math.sin(a) * 5);
+      }
+      o.stroke();
+    }
+  }
+
+  const offC = document.createElement('canvas'), offX = offC.getContext('2d');
+  function iconImage(st, t, px, ink) {
+    if (offC.width !== px) { offC.width = px; offC.height = px; }
+    offX.setTransform(1, 0, 0, 1, 0, 0);
+    offX.globalCompositeOperation = 'source-over';
+    offX.globalAlpha = 1;
+    offX.clearRect(0, 0, px, px);
+    offX.save();
+    offX.setTransform(px / U, 0, 0, px / U, 0, 0);
+    offX.fillStyle = offX.strokeStyle = '#000';
+    drawKeycap(offX, st, t);
+    offX.restore();
+    offX.globalCompositeOperation = 'source-in';
+    offX.fillStyle = ink;
+    offX.fillRect(0, 0, px, px);
+    offX.globalCompositeOperation = 'source-over';
+    return offC;
+  }
+  function paintIcon(ctx, st, t, cx, cy, size, dpr, ink) {
+    const px = Math.max(1, Math.round(size * dpr));
+    const img = iconImage(st, t, px, ink);
+    ctx.globalAlpha = st === 'off' ? DISABLED_ALPHA : 1;
+    ctx.drawImage(img, Math.round(cx * dpr - px / 2), Math.round(cy * dpr - px / 2));
+    ctx.globalAlpha = 1;
+  }
+
+  const sheet = $('icon-sheet');
+  const iconCanvases = [...sheet.querySelectorAll('canvas[data-state]')];
+  const mbCanvas = $('mb-icon');
+  let iconBar = 'dark', iconZoom = 3, iconsDirty = true;
+  const iconBox = new Map();
+
+  function bindIconSeg(id, attr, apply) {
+    const seg = $(id);
+    seg.addEventListener('click', e => {
+      const b = e.target.closest(`button[${attr}]`);
+      if (!b) return;
+      for (const x of seg.querySelectorAll('button')) x.setAttribute('aria-checked', String(x === b));
+      apply(b.getAttribute(attr));
+      sheet.dataset.bar = iconBar;
+    });
+  }
+  bindIconSeg('icon-bar', 'data-bar', v => { iconBar = v; });
+  bindIconSeg('icon-zoom', 'data-zoom', v => { iconZoom = +v; });
+
+  function measureIcons() {
+    const dpr = window.devicePixelRatio || 1;
+    for (const c of [...iconCanvases, mbCanvas]) {
+      const r = c.getBoundingClientRect();
+      const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+      iconBox.set(c, { w: r.width, h: r.height, dpr });
+    }
+    iconsDirty = false;
+  }
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(() => { iconsDirty = true; });
+    for (const c of [...iconCanvases, mbCanvas]) ro.observe(c);
+  } else window.addEventListener('resize', () => { iconsDirty = true; });
+
+  function drawIcons() {
+    if (iconsDirty) measureIcons();
+    const bar = BAR[iconBar];
+    for (const c of iconCanvases) {
+      const m = iconBox.get(c);
+      if (!m || !m.w) continue;
+      const ctx = c.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = bar.bg;
+      ctx.fillRect(0, 0, c.width, c.height);
+      const zoom = Math.max(1, Math.min(iconZoom, (m.w - 12) / U, (m.h - 12) / U));
+      paintIcon(ctx, c.dataset.state, clock, m.w / 2, m.h / 2, U * zoom, m.dpr, bar.ink);
+    }
+    const m = iconBox.get(mbCanvas);
+    if (m && m.w) {
+      const ctx = mbCanvas.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, mbCanvas.width, mbCanvas.height);
+      const st = test ? 'normal' : appOff ? 'off' : state;
+      paintIcon(ctx, st, test ? 0 : clock - stateT0, m.w / 2, m.h / 2, U, m.dpr, '#ffffff');
+    }
+  }
+
+  /* ---------- Boot ---------- */
+  renderAppTabs();
+  paintRoom();
+  syncControls();
+  renderAll();
+  updateStateUI();
+  renderGlance();
+  if ('ResizeObserver' in window) new ResizeObserver(() => drawTraces()).observe(document.querySelector('.signals'));
+  else window.addEventListener('resize', drawTraces);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawTraces);
+  requestAnimationFrame(frame);
+})();
+</script>
