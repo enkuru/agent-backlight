@@ -1,11 +1,11 @@
 import Testing
 @testable import AgentBacklightCore
 
-struct SessionTrackerTests {
-    private func event(_ name: String, _ session: String = "a", tool: String? = nil, notification: String? = nil) -> HookEvent {
-        HookEvent(sessionID: session, name: name, toolName: tool, notificationType: notification)
-    }
+private func event(_ name: String, _ session: String = "a", tool: String? = nil, notification: String? = nil) -> HookEvent {
+    HookEvent(sessionID: session, name: name, toolName: tool, notificationType: notification)
+}
 
+struct SessionTrackerTests {
     @Test func questionInAnySessionWinsOverThinking() {
         var tracker = SessionTracker()
         tracker.apply(event("UserPromptSubmit", "a"))
@@ -20,12 +20,14 @@ struct SessionTrackerTests {
         #expect(tracker.sessions.isEmpty)
     }
 
-    @Test func permissionPromptAsksUntilTheToolRuns() {
+    /// `PermissionRequest` comes as the dialog opens; the `permission_prompt` notification comes about 6 s later.
+    @Test(arguments: [event("PermissionRequest", tool: "Bash"), event("Notification", notification: "permission_prompt")])
+    func permissionPromptAsksUntilTheToolRuns(prompt: HookEvent) {
         var tracker = SessionTracker()
         tracker.apply(event("PreToolUse", tool: "Bash"))
         #expect(tracker.state == .thinking)
 
-        tracker.apply(event("Notification", notification: "permission_prompt"))
+        tracker.apply(prompt)
         #expect(tracker.state == .question)
 
         tracker.apply(event("PostToolUse", tool: "Bash"))

@@ -7,8 +7,8 @@ struct ClaudeHooks {
     enum Status: Equatable {
         case installed
         case notInstalled
-        /// Installed for a copy of the app in another folder.
-        case otherCopy
+        /// Installed for a copy of the app in another folder, or by an older version that used fewer events.
+        case outdated
         case unreadable(String)
     }
 
@@ -27,7 +27,7 @@ struct ClaudeHooks {
         do {
             let settings = try read()
             if HookInstaller.isInstalled(command: command, in: settings) { return .installed }
-            return HookInstaller.hasAnyInstall(in: settings) ? .otherCopy : .notInstalled
+            return HookInstaller.hasAnyInstall(in: settings) ? .outdated : .notInstalled
         } catch {
             return .unreadable(error.description)
         }

@@ -1,3 +1,4 @@
+import AgentBacklightCore
 import AppKit
 import Observation
 
@@ -15,7 +16,7 @@ final class HooksModel {
     func install() {
         let confirmed = confirm(
             "Add Agent Backlight to Claude Code?",
-            "Adds the hook command to 8 events in \(hooks.displayPath). Your other settings and hooks stay; the file is rewritten with sorted keys and the current one is kept as \((hooks.backupPath as NSString).lastPathComponent).\n\nRestart open Claude Code sessions to pick up the hooks.",
+            "Adds the hook command to \(HookInstaller.events.count) events in \(hooks.displayPath). Your other settings and hooks stay; the file is rewritten with sorted keys and the current one is kept as \((hooks.backupPath as NSString).lastPathComponent).\n\nRestart open Claude Code sessions to pick up the hooks.",
             button: "Add Hooks"
         )
         guard confirmed else { return }

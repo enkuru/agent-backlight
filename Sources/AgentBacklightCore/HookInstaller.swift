@@ -1,7 +1,7 @@
 /// Adds or removes this app's hook command in Claude Code's settings, leaving every other setting and hook as it was.
 public enum HookInstaller {
     public static let events = [
-        "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
+        "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse", "PostToolUseFailure",
         "Notification", "Stop", "StopFailure", "SessionEnd"
     ]
     public static let commandName = "agent-backlight-hook"

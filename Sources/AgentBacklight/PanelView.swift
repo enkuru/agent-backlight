@@ -136,8 +136,8 @@ struct PanelView: View {
                 switch hooks.status {
                 case .installed:
                     Button("Remove hooks") { hooks.remove() }
-                case .notInstalled, .otherCopy:
-                    Button(hooks.status == .otherCopy ? "Install for this copy" : "Install hooks") { hooks.install() }
+                case .notInstalled, .outdated:
+                    Button(hooks.status == .outdated ? "Update hooks" : "Install hooks") { hooks.install() }
                 case .unreadable:
                     EmptyView()
                 }
@@ -153,7 +153,7 @@ struct PanelView: View {
         switch hooks.status {
         case .installed: "Claude Code hooks installed"
         case .notInstalled: "Claude Code hooks not installed"
-        case .otherCopy: "Hooks point to another copy of the app"
+        case .outdated: "Hooks are from another copy or an older version"
         case .unreadable(let reason): reason
         }
     }

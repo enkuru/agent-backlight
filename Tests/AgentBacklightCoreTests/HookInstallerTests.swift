@@ -47,6 +47,16 @@ struct HookInstallerTests {
         #expect(!json(result).contains("/old/place"))
     }
 
+    @Test func anInstallFromBeforeANewEventNeedsAnUpdate() throws {
+        var older = HookInstaller.installing(command: command, into: userSettings())
+        var hooks = try #require(older["hooks"] as? [String: Any])
+        hooks["PermissionRequest"] = nil
+        older["hooks"] = hooks
+
+        #expect(!HookInstaller.isInstalled(command: command, in: older))
+        #expect(HookInstaller.hasAnyInstall(in: older))
+    }
+
     @Test func removeRestoresTheOriginalSettings() {
         let installed = HookInstaller.installing(command: command, into: userSettings())
         #expect(json(HookInstaller.removing(from: installed)) == json(userSettings()))

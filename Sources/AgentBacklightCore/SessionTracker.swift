@@ -18,6 +18,8 @@ public struct SessionTracker: Sendable {
             sessions[id] = .thinking
         case "PreToolUse":
             sessions[id] = Self.askingTools.contains(event.toolName ?? "") ? .question : .thinking
+        case "PermissionRequest":
+            sessions[id] = .question
         case "Notification":
             if let type = event.notificationType, Self.askingNotifications.contains(type) {
                 sessions[id] = .question

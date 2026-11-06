@@ -24,8 +24,9 @@ open ~/Applications/AgentBacklight.app
 ```
 
 Then click the keycap in the menu bar, choose **Install hooks**, and restart any open Claude Code sessions.
-The app adds one command, `AgentBacklight.app/Contents/MacOS/agent-backlight-hook`, to eight events in `~/.claude/settings.json`
-and keeps the previous file as `settings.json.agent-backlight.bak`. **Remove hooks** takes it out again.
+The app adds one command, `AgentBacklight.app/Contents/MacOS/agent-backlight-hook`, to nine events in `~/.claude/settings.json`
+and keeps the previous file as `settings.json.agent-backlight.bak`. **Remove hooks** takes it out again. When a new version
+listens to more events, the panel shows **Update hooks** instead.
 
 To start it at login, add it in System Settings → General → Login Items.
 
@@ -39,11 +40,13 @@ To start it at login, add it in System Settings → General → Login Items.
 
 ## How it works
 
-- Claude Code runs `agent-backlight-hook` on `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`,
-  `Notification`, `Stop`, `StopFailure` and `SessionEnd`. The command forwards the event to the app as a distributed
-  notification, prints nothing and always exits 0, so it never changes or blocks a session.
-- `AskUserQuestion`, `ExitPlanMode`, and permission or elicitation notifications mean *question*; other tool and prompt
-  events mean *thinking*; `Stop`, `StopFailure` and `SessionEnd` end the session's signal.
+- Claude Code runs `agent-backlight-hook` on `UserPromptSubmit`, `PreToolUse`, `PermissionRequest`, `PostToolUse`,
+  `PostToolUseFailure`, `Notification`, `Stop`, `StopFailure` and `SessionEnd`. The command forwards the event to the app
+  as a distributed notification, prints nothing and always exits 0, so it never changes or blocks a session. For
+  `PermissionRequest` that means it never answers the prompt: the dialog appears as usual.
+- `AskUserQuestion`, `ExitPlanMode`, `PermissionRequest`, and permission or elicitation notifications mean *question*;
+  other tool and prompt events mean *thinking*; `Stop`, `StopFailure` and `SessionEnd` end the session's signal.
+  `PermissionRequest` fires as the permission dialog opens, while the permission notification comes about 6 seconds later.
 - While a signal runs the app pauses idle dimming. When the signal ends or the app quits, it saves your level back the
   way the brightness slider does and resumes idle dimming; if the app is killed mid-signal it does this on its next
   launch. The save matters: any brightness change an app makes pauses auto-brightness, and until a saved change ends
