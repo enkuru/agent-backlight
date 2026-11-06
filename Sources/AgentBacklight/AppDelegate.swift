@@ -11,7 +11,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let light = LightController(log: log)
         let hooks = HooksModel()
-        let statusItem = StatusItemController(panel: PanelView(light: light, hooks: hooks), onOpen: hooks.refresh)
+        let loginItem = LoginItem()
+        let statusItem = StatusItemController(panel: PanelView(light: light, hooks: hooks, loginItem: loginItem)) {
+            hooks.refresh()
+            loginItem.refresh()
+        }
         light.onIcon = { [weak statusItem] frame in statusItem?.show(frame) }
         self.light = light
         self.statusItem = statusItem

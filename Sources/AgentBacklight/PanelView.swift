@@ -1,10 +1,12 @@
 import AgentBacklightCore
+import ServiceManagement
 import SwiftUI
 
 /// The menu bar panel, laid out like the mock-up on the design page.
 struct PanelView: View {
     let light: LightController
     let hooks: HooksModel
+    let loginItem: LoginItem
 
     @State private var tab = AgentState.thinking
     @State private var showsImport = false
@@ -44,13 +46,16 @@ struct PanelView: View {
             if showsImport { importBox }
             Divider()
             HStack {
+                Toggle("Open at login", isOn: Binding(get: { loginItem.isOn }, set: { loginItem.set($0) }))
+                    .toggleStyle(.checkbox)
+                Spacer()
                 Button("Clear sessions") { light.clearSessions() }
                     .disabled(light.tracker.sessions.isEmpty)
                     .help("Ends every signal now, for example after you pressed Esc in Claude Code")
-                Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }
             .controlSize(.small)
+            loginItemNotes
         }
         .padding(14)
         .frame(width: 340)
@@ -146,6 +151,23 @@ struct PanelView: View {
             if let problem = hooks.problem {
                 Text(problem).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var loginItemNotes: some View {
+        if loginItem.status == .requiresApproval {
+            HStack {
+                Text("macOS needs your OK in Login Items.")
+                Spacer()
+                Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }
+                    .buttonStyle(.link)
+            }
+            .font(.caption)
+            .foregroundStyle(.orange)
+        }
+        if let problem = loginItem.problem {
+            Text(problem).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
         }
     }
 

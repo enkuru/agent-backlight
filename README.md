@@ -28,7 +28,8 @@ The app adds one command, `AgentBacklight.app/Contents/MacOS/agent-backlight-hoo
 and keeps the previous file as `settings.json.agent-backlight.bak`. **Remove hooks** takes it out again. When a new version
 listens to more events, the panel shows **Update hooks** instead.
 
-To start it at login, add it in System Settings → General → Login Items.
+To start it at login, tick **Open at login** in the panel. It adds the app to System Settings → General → Login Items,
+where you can also turn it off.
 
 ## The panel
 
@@ -37,6 +38,7 @@ To start it at login, add it in System Settings → General → Login Items.
 - **Play on keyboard**: plays the selected signal on the real backlight for 5 seconds.
 - **Import spec…**: paste the spec copied from the design page to load every value at once.
 - **Clear sessions**: ends every signal now (see the Esc note below).
+- **Open at login**: starts the app when you log in. If macOS asks for your OK, the panel links to Login Items.
 
 ## How it works
 
