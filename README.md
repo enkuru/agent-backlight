@@ -48,6 +48,9 @@ To start it at login, add it in System Settings → General → Login Items.
   way the brightness slider does and resumes idle dimming; if the app is killed mid-signal it does this on its next
   launch. The save matters: any brightness change an app makes pauses auto-brightness, and until a saved change ends
   that pause the keys stay dark when you type.
+- macOS still notes when you go idle during a signal, but not when you come back, so resuming idle dimming would turn
+  the keys off under your hands. The app then sets your idle-dim time one second longer and straight back, which makes
+  macOS check again whether you're active. Your setting ends where it was.
 - The light is driven through `KeyboardBrightnessClient` in the private CoreBrightness framework. The app checks every
   method it uses at launch and shows "Keyboard backlight unavailable" if a macOS update changed them.
 - Every event and light change is logged to `~/Library/Logs/AgentBacklight.log`.
