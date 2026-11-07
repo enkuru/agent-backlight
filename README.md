@@ -9,7 +9,8 @@ A menu bar app that shows what Claude Code and Codex are doing on your MacBook's
 | done                                    | fades back to your own level     | a sun                    |
 
 When several sessions run, the most urgent one wins: question, then thinking, then normal.
-The design and every setting come from [design/agent-backlight.html](design/agent-backlight.html).
+The design and every setting come from [design/agent-backlight.html](design/agent-backlight.html). Its hook table
+predates Codex support and `PermissionRequest`; [How it works](#how-it-works) lists the current events.
 
 ## Install
 
@@ -29,9 +30,9 @@ the previous file next to it with `.agent-backlight.bak` added to the name. **Re
 new version listens to more events, the row shows **Update hooks** instead.
 
 - **Claude Code**: nine events in `~/.claude/settings.json`. Restart open sessions to pick them up.
-- **Codex**: six events in `~/.codex/hooks.json`. Codex skips new hooks until you trust them: when it asks, choose
-  **Trust all and continue**, or review them with `/hooks`. Codex trusts each hook by its place in the file, so the app
-  adds its hooks after yours and your hooks keep their trust.
+- **Codex**: six events in `~/.codex/hooks.json`, used by both the Codex CLI and the Codex app. Codex skips new hooks
+  until you trust them: when it asks, choose **Trust all and continue**, or review them with `/hooks`. Codex trusts each
+  hook by its place in the file, so the app adds its hooks after yours and your hooks keep their trust.
 
 The panel shows a row only for agents whose folder (`~/.claude`, `~/.codex`) exists.
 
@@ -44,6 +45,7 @@ where you can also turn it off.
 - **Thinking / Question / Normal**: the same sliders and limits as the design page. Changes apply live.
 - **Play on keyboard**: plays the selected signal on the real backlight for 5 seconds.
 - **Import spec…**: paste the spec copied from the design page to load every value at once.
+- **Hook rows**: one for Claude Code and one for Codex, each with **Install hooks**, **Update hooks** or **Remove hooks**.
 - **Clear sessions**: ends every signal now (see the Esc note below).
 - **Open at login**: starts the app when you log in. If macOS asks for your OK, the panel links to Login Items.
 
@@ -77,9 +79,10 @@ where you can also turn it off.
 
 - **Esc** sends no hook event. After you interrupt Claude, the wave stops at the next `idle_prompt` notification
   (about a minute later) or when you send the next prompt. Use **Clear sessions** to stop it at once.
-- Codex has no notification event, so after you interrupt Codex the wave runs until your next prompt or **Clear sessions**.
-- Codex sessions that save no transcript, such as `codex exec --ephemeral`, don't show, for the same reason as the helpers.
 - A permission prompt you dismiss with Esc keeps blinking until that session's next event, for the same reason.
+- Codex has no notification event, so after you interrupt Codex the wave runs until your next prompt or **Clear sessions**.
+- Codex sessions that save no transcript, such as `codex exec --ephemeral`, don't show, because the hook command can't
+  tell them from Codex's background helpers.
 - If you change the keyboard brightness while a signal runs, the signal overrides it until it ends.
 
 ## Develop
@@ -88,5 +91,5 @@ where you can also turn it off.
 scripts/test.sh
 ```
 
-`AgentBacklightCore` holds the rules (session priority, signal timing, spec import, settings merge) and its tests;
+`AgentBacklightCore` holds the rules (session priority, signal timing, spec import, hook file merge) and its tests;
 `AgentBacklight` is the AppKit/SwiftUI app; `agent-backlight-hook` is the hook command.
