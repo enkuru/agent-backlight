@@ -34,9 +34,11 @@ struct SessionTrackerTests {
         #expect(tracker.state == .thinking)
     }
 
-    @Test func planApprovalAsks() {
+    /// Plan approval in Claude Code, and Codex's question tool.
+    @Test(arguments: ["ExitPlanMode", "request_user_input"])
+    func toolsThatWaitForYourAnswerAsk(tool: String) {
         var tracker = SessionTracker()
-        tracker.apply(event("PreToolUse", tool: "ExitPlanMode"))
+        tracker.apply(event("PreToolUse", tool: tool))
         #expect(tracker.state == .question)
     }
 

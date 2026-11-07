@@ -84,7 +84,8 @@ final class LightController {
     func receive(_ event: HookEvent) {
         tracker.apply(event)
         let detail = [event.toolName, event.notificationType].compactMap(\.self).joined(separator: " ")
-        log.write("hook \(event.name)\(detail.isEmpty ? "" : " " + detail) session \(event.sessionID.prefix(8)) -> \(tracker.state.title)")
+        // 13 characters: Codex session ids start with a timestamp, so their first 8 match across sessions.
+        log.write("hook \(event.name)\(detail.isEmpty ? "" : " " + detail) session \(event.sessionID.prefix(13)) -> \(tracker.state.title)")
         tick()
     }
 

@@ -1,13 +1,20 @@
-/// Adds or removes this app's hook command in Claude Code's settings, leaving every other setting and hook as it was.
-public enum HookInstaller {
-    public static let events = [
+/// Adds or removes this app's hook command in an agent's hook settings, leaving every other setting and hook as it was.
+/// Claude Code and Codex share the format: each event holds a list of groups, and each group a list of commands.
+public struct HookInstaller: Sendable {
+    public static let claudeCode = HookInstaller(events: [
         "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse", "PostToolUseFailure",
         "Notification", "Stop", "StopFailure", "SessionEnd"
-    ]
+    ])
+    /// Codex has no `Notification`, `PostToolUseFailure` or `StopFailure` event.
+    public static let codex = HookInstaller(events: [
+        "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse", "Stop", "SessionEnd"
+    ])
     public static let commandName = "agent-backlight-hook"
     static let timeoutSeconds = 5
 
-    public static func isInstalled(command: String, in settings: [String: Any]) -> Bool {
+    public let events: [String]
+
+    public func isInstalled(command: String, in settings: [String: Any]) -> Bool {
         let hooks = settings["hooks"] as? [String: Any] ?? [:]
         return events.allSatisfy { event in
             groups(hooks[event]).contains { group in
@@ -17,16 +24,17 @@ public enum HookInstaller {
     }
 
     /// Whether any event runs this app's command, from this copy of the app or another.
-    public static func hasAnyInstall(in settings: [String: Any]) -> Bool {
+    public func hasAnyInstall(in settings: [String: Any]) -> Bool {
         let hooks = settings["hooks"] as? [String: Any] ?? [:]
         return hooks.values.contains { groups($0).contains { entries($0).contains(where: isOurs) } }
     }
 
-    /// Registers `command` for every event, replacing earlier installs from any location.
-    public static func installing(command: String, into settings: [String: Any]) -> [String: Any] {
+    /// Registers `command` for every event, replacing earlier installs from any location. Our group goes last,
+    /// so the user's hooks keep their places: Codex trusts each hook by its position.
+    public func installing(command: String, into settings: [String: Any]) -> [String: Any] {
         var result = removing(from: settings)
         var hooks = result["hooks"] as? [String: Any] ?? [:]
-        let group: [String: Any] = ["hooks": [["type": "command", "command": command, "timeout": timeoutSeconds]]]
+        let group: [String: Any] = ["hooks": [["type": "command", "command": command, "timeout": Self.timeoutSeconds]]]
         for event in events {
             hooks[event] = groups(hooks[event]) + [group]
         }
@@ -35,7 +43,7 @@ public enum HookInstaller {
     }
 
     /// Removes every hook that runs this app's command. Lists and groups emptied by the removal go too.
-    public static func removing(from settings: [String: Any]) -> [String: Any] {
+    public func removing(from settings: [String: Any]) -> [String: Any] {
         guard var hooks = settings["hooks"] as? [String: Any] else { return settings }
         var removedAny = false
         for (event, value) in hooks {
@@ -61,11 +69,11 @@ public enum HookInstaller {
         return result
     }
 
-    private static func isOurs(_ entry: [String: Any]) -> Bool {
-        (entry["command"] as? String)?.hasSuffix("/" + commandName) == true
+    private func isOurs(_ entry: [String: Any]) -> Bool {
+        (entry["command"] as? String)?.hasSuffix("/" + Self.commandName) == true
     }
 
-    private static func groups(_ value: Any?) -> [[String: Any]] { value as? [[String: Any]] ?? [] }
+    private func groups(_ value: Any?) -> [[String: Any]] { value as? [[String: Any]] ?? [] }
 
-    private static func entries(_ group: [String: Any]) -> [[String: Any]] { group["hooks"] as? [[String: Any]] ?? [] }
+    private func entries(_ group: [String: Any]) -> [[String: Any]] { group["hooks"] as? [[String: Any]] ?? [] }
 }

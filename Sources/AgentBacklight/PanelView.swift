@@ -5,7 +5,7 @@ import SwiftUI
 /// The menu bar panel, laid out like the mock-up on the design page.
 struct PanelView: View {
     let light: LightController
-    let hooks: HooksModel
+    let hooks: [HooksModel]
     let loginItem: LoginItem
 
     @State private var tab = AgentState.thinking
@@ -40,10 +40,19 @@ struct PanelView: View {
             }
             .controlSize(.large)
             .disabled(light.backlightError != nil)
+            HStack {
+                Spacer()
+                Button(showsImport ? "Hide import" : "Import spec…") {
+                    showsImport.toggle()
+                    importMessage = nil
+                }
+                .buttonStyle(.link)
+            }
+            .font(.caption)
+            if showsImport { importBox }
 
             Divider()
-            hooksRow
-            if showsImport { importBox }
+            ForEach(hooks.filter { $0.status != .agentNotFound }, id: \.agent) { hooksRow($0) }
             Divider()
             HStack {
                 Toggle("Open at login", isOn: Binding(get: { loginItem.isOn }, set: { loginItem.set($0) }))
@@ -121,32 +130,28 @@ struct PanelView: View {
         }
     }
 
-    private var hooksRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func hooksRow(_ hooks: HooksModel) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 HStack(spacing: 6) {
                     Circle().fill(hooks.status == .installed ? Color.green : Color.orange).frame(width: 7, height: 7)
-                    Text(hooksText)
+                    Text(hooksText(hooks)).fixedSize(horizontal: false, vertical: true)
                 }
                 .foregroundStyle(.secondary)
                 Spacer()
-                Button(showsImport ? "Hide import" : "Import spec…") {
-                    showsImport.toggle()
-                    importMessage = nil
-                }
-                .buttonStyle(.link)
-            }
-            .font(.caption)
-            HStack {
                 switch hooks.status {
                 case .installed:
                     Button("Remove hooks") { hooks.remove() }
-                case .notInstalled, .outdated:
-                    Button(hooks.status == .outdated ? "Update hooks" : "Install hooks") { hooks.install() }
-                case .unreadable:
+                case .notInstalled:
+                    Button("Install hooks") { hooks.install() }
+                case .outdated:
+                    Button("Update hooks") { hooks.install() }
+                        .help("Installed by another copy of the app or an older version")
+                case .unreadable, .agentNotFound:
                     EmptyView()
                 }
             }
+            .font(.caption)
             .controlSize(.small)
             if let problem = hooks.problem {
                 Text(problem).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
@@ -171,11 +176,11 @@ struct PanelView: View {
         }
     }
 
-    private var hooksText: String {
+    private func hooksText(_ hooks: HooksModel) -> String {
         switch hooks.status {
-        case .installed: "Claude Code hooks installed"
-        case .notInstalled: "Claude Code hooks not installed"
-        case .outdated: "Hooks are from another copy or an older version"
+        case .installed: "\(hooks.agent) hooks installed"
+        case .notInstalled, .agentNotFound: "\(hooks.agent) hooks not installed"
+        case .outdated: "\(hooks.agent) hooks need an update"
         case .unreadable(let reason): reason
         }
     }

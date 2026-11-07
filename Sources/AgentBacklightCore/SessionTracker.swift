@@ -1,7 +1,7 @@
-/// Follows every Claude Code session from its hook events. Only sessions that are thinking or asking are kept.
+/// Follows every Claude Code and Codex session from its hook events. Only sessions that are thinking or asking are kept.
 public struct SessionTracker: Sendable {
-    /// Tools that wait for your answer before they run.
-    static let askingTools: Set<String> = ["AskUserQuestion", "ExitPlanMode"]
+    /// Tools that wait for your answer before they run. `request_user_input` is Codex's.
+    static let askingTools: Set<String> = ["AskUserQuestion", "ExitPlanMode", "request_user_input"]
     /// Notifications that mean Claude is waiting for your decision.
     static let askingNotifications: Set<String> = ["permission_prompt", "elicitation_dialog"]
 

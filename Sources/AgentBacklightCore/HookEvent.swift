@@ -1,6 +1,6 @@
 import Foundation
 
-/// One Claude Code hook call, forwarded from the hook command to the app.
+/// One Claude Code or Codex hook call, forwarded from the hook command to the app.
 public struct HookEvent: Equatable, Sendable {
     public var sessionID: String
     public var name: String
@@ -45,11 +45,15 @@ public enum HookChannel {
 }
 
 extension HookEvent {
-    /// Reads the JSON Claude Code writes to a hook command's stdin.
+    /// Reads the JSON Claude Code or Codex writes to a hook command's stdin. Both use the same field names.
+    /// Codex sends a null `transcript_path` for the helper sessions it runs in the background, such as memory
+    /// consolidation and the suggested next message. Those are skipped: you didn't start them, and the memory
+    /// session would keep the wave on for about a minute after your turn ends.
     public init?(hookInput data: Data) {
         guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let session = json["session_id"] as? String,
-              let name = json["hook_event_name"] as? String else { return nil }
+              let name = json["hook_event_name"] as? String,
+              !(json["transcript_path"] is NSNull) else { return nil }
         self.init(
             sessionID: session,
             name: name,

@@ -2,12 +2,18 @@ import AgentBacklightCore
 import AppKit
 import Observation
 
-/// The panel's view of the Claude Code hooks. Changes to the settings file are confirmed first.
+/// The panel's view of one agent's hooks. Changes to the hook file are confirmed first.
 @MainActor @Observable
 final class HooksModel {
-    private(set) var status = ClaudeHooks.Status.notInstalled
+    private(set) var status = AgentHooks.Status.notInstalled
     private(set) var problem: String?
-    @ObservationIgnored private let hooks = ClaudeHooks()
+    let agent: String
+    @ObservationIgnored private let hooks: AgentHooks
+
+    init(_ hooks: AgentHooks) {
+        self.hooks = hooks
+        agent = hooks.agent
+    }
 
     func refresh() {
         status = hooks.status()
@@ -15,25 +21,25 @@ final class HooksModel {
 
     func install() {
         let confirmed = confirm(
-            "Add Agent Backlight to Claude Code?",
-            "Adds the hook command to \(HookInstaller.events.count) events in \(hooks.displayPath). Your other settings and hooks stay; the file is rewritten with sorted keys and the current one is kept as \((hooks.backupPath as NSString).lastPathComponent).\n\nRestart open Claude Code sessions to pick up the hooks.",
+            "Add Agent Backlight to \(agent)?",
+            "Adds the hook command to \(hooks.installer.events.count) events in \(hooks.displayPath). Your other settings and hooks stay; the file is rewritten with sorted keys and the current one is kept as \((hooks.backupPath as NSString).lastPathComponent).\n\n\(hooks.pickUp)",
             button: "Add Hooks"
         )
         guard confirmed else { return }
-        run { () throws(ClaudeHooks.Failure) in try hooks.install() }
+        run { () throws(AgentHooks.Failure) in try hooks.install() }
     }
 
     func remove() {
         let confirmed = confirm(
-            "Remove Agent Backlight from Claude Code?",
+            "Remove Agent Backlight from \(agent)?",
             "Removes the hook command from \(hooks.displayPath) and keeps the current file as \((hooks.backupPath as NSString).lastPathComponent).",
             button: "Remove Hooks"
         )
         guard confirmed else { return }
-        run { () throws(ClaudeHooks.Failure) in try hooks.remove() }
+        run { () throws(AgentHooks.Failure) in try hooks.remove() }
     }
 
-    private func run(_ change: () throws(ClaudeHooks.Failure) -> Void) {
+    private func run(_ change: () throws(AgentHooks.Failure) -> Void) {
         do {
             try change()
             problem = nil
