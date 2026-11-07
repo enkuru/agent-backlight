@@ -61,6 +61,10 @@ where you can also turn it off.
   notifications mean *question*; other tool and prompt events mean *thinking*; `Stop`, `StopFailure` and `SessionEnd`
   end the session's signal. In Claude Code, `PermissionRequest` fires as the permission dialog opens, while the
   permission notification comes about 6 seconds later.
+- Both agents also run `PermissionRequest` before an automatic reviewer decides, so the hook command skips it in
+  Claude Code's auto mode and in Codex sessions set to auto-review: those calls keep the wave. In auto mode the
+  permission notification still flags a prompt that reaches you. Codex sends the same input whoever reviews, so the
+  hook command reads the reviewer from the session's latest `turn_context` record in its transcript.
 - Codex also runs helper sessions in the background, such as memory consolidation and the suggested next message.
   They send no transcript path, and the hook command skips them: the memory session would otherwise keep the wave on
   for about a minute after your turn ends.
@@ -81,6 +85,8 @@ where you can also turn it off.
   (about a minute later) or when you send the next prompt. Use **Clear sessions** to stop it at once.
 - A permission prompt you dismiss with Esc keeps blinking until that session's next event, for the same reason.
 - Codex has no notification event, so after you interrupt Codex the wave runs until your next prompt or **Clear sessions**.
+- In a Codex session set to auto-review, a permission prompt that still reaches you doesn't blink, for the same reason.
+  In Claude Code's auto mode such a prompt starts blinking about 6 seconds after it opens.
 - Codex sessions that save no transcript, such as `codex exec --ephemeral`, don't show, because the hook command can't
   tell them from Codex's background helpers.
 - If you change the keyboard brightness while a signal runs, the signal overrides it until it ends.

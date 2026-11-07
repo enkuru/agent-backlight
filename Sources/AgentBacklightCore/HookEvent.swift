@@ -49,16 +49,28 @@ extension HookEvent {
     /// Codex sends a null `transcript_path` for the helper sessions it runs in the background, such as memory
     /// consolidation and the suggested next message. Those are skipped: you didn't start them, and the memory
     /// session would keep the wave on for about a minute after your turn ends.
+    /// `PermissionRequest` is skipped when an automatic reviewer answers it: see `isAutoReviewed(_:)`.
     public init?(hookInput data: Data) {
         guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let session = json["session_id"] as? String,
               let name = json["hook_event_name"] as? String,
-              !(json["transcript_path"] is NSNull) else { return nil }
+              !(json["transcript_path"] is NSNull),
+              !(name == "PermissionRequest" && Self.isAutoReviewed(json)) else { return nil }
         self.init(
             sessionID: session,
             name: name,
             toolName: json["tool_name"] as? String,
             notificationType: json["notification_type"] as? String
         )
+    }
+
+    /// Both agents run `PermissionRequest` before their automatic reviewer decides, so most requests in these
+    /// sessions never reach you. In Claude Code's auto mode, a request that does reach you still sends the
+    /// permission notification about six seconds later. Codex reports `permission_mode` "default" whoever
+    /// reviews, so its reviewer comes from the session's rollout file; `turn_id` is only in Codex's input.
+    private static func isAutoReviewed(_ json: [String: Any]) -> Bool {
+        if json["permission_mode"] as? String == "auto" { return true }
+        guard json["turn_id"] != nil, let transcript = json["transcript_path"] as? String else { return false }
+        return CodexTranscript.approvalsReviewer(at: transcript) == "auto_review"
     }
 }
